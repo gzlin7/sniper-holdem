@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texas Hold'em Poker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="blinds-info"></div>
+    <h1 style="text-align:center;">Texas Hold'em Poker</h1>
+    <div id="table">
+        <div id="community-cards">
+            <!-- Community cards will be rendered here -->
+        </div>
+        <div id="pot">Pot: $<span id="pot-amount">0</span></div>
+    </div>
+    <div id="players">
+        <div class="player" id="player-1">
+            <div><strong>You <span id="you-blind"></span></strong></div>
+            <div class="hole-cards" id="your-cards"></div>
+            <div>Chips: $<span id="your-chips">1000</span></div>
+            <div id="your-rank" style="margin-top:5px;font-size:0.95em;"></div>
+        </div>
+        <div class="player" id="player-2">
+            <div><strong>Opponent <span id="opp-blind"></span></strong></div>
+            <div class="hole-cards" id="opp-cards"></div>
+            <div>Chips: $<span id="opp-chips">1000</span></div>
+        </div>
+    </div>
+    <div id="controls">
+        <button id="raise-btn">Raise</button>
+        <button id="check-btn">Check</button>
+        <button id="fold-btn">Fold</button>
+        <input type="number" id="bet-amount" value="50" min="1" style="width:60px;">
+    </div>
+
+    <script type="module">
+        import { getHandRank } from './handHelper.js';
+
+        // Card representation
+        function renderCard(card) {
+            if (!card) return '<div class="card"></div>';
+            return `<div class="card">${card.rank}${card.suit}</div>`;
+        }
+
+        // Example initial state
+        let state = {
+            pot: 0,
+            yourChips: 1000,
+            oppChips: 1000,
+            yourCards: [{rank:'A',suit:'♠'}, {rank:'K',suit:'♥'}],
+            oppCards: [{rank:'?',suit:'?'}, {rank:'?',suit:'?'}],
+            community: [],
+        };
+
+        // Blinds logic
+        const SMALL_BLIND = 10;
+        const BIG_BLIND = 20;
+        let dealerIsYou = true; // true: you are dealer (opponent is small blind, you are big blind)
+
+        function postBlinds() {
+            // Reset pot
+            state.pot = 0;
+            // Deduct blinds and update chips
+            if (dealerIsYou) {
+                // Opponent is small blind, you are big blind
+                state.oppChips -= SMALL_BLIND;
+                state.yourChips -= BIG_BLIND;
+                state.pot += SMALL_BLIND + BIG_BLIND;
+            } else {
+                // You are small blind, opponent is big blind
+                state.yourChips -= SMALL_BLIND;
+                state.oppChips -= BIG_BLIND;
+                state.pot += SMALL_BLIND + BIG_BLIND;
+            }
+        }
+
+        function updateBlindsUI() {
+            document.getElementById('you-blind').textContent = dealerIsYou ? '(Big Blind)' : '(Small Blind)';
+            document.getElementById('opp-blind').textContent = dealerIsYou ? '(Small Blind)' : '(Big Blind)';
+        }
+
+        function updateBlindsInfo() {
+            document.getElementById('blinds-info').textContent =
+                `Blinds: Small $${SMALL_BLIND} / Big $${BIG_BLIND}`;
+        }
+
+        function updateUI() {
+            // Community cards
+            const comm = state.community;
+            document.getElementById('community-cards').innerHTML =
+                [0,1,2,3,4].map(i => renderCard(comm[i])).join('');
+            // Player cards
+            document.getElementById('your-cards').innerHTML =
+                state.yourCards.map(renderCard).join('');
+            document.getElementById('opp-cards').innerHTML =
+                state.oppCards.map(renderCard).join('');
+            // Chips and pot
+            document.getElementById('your-chips').textContent = state.yourChips;
+            document.getElementById('opp-chips').textContent = state.oppChips;
+            document.getElementById('pot-amount').textContent = state.pot;
+            // Show your hand rank
+            const allCards = state.yourCards.concat(state.community.filter(Boolean));
+            let rankText = "";
+            if (allCards.length >= 5) {
+                const rank = getHandRank(allCards);
+                rankText = "Hand: " + rank.name;
+            }
+            document.getElementById('your-rank').textContent = rankText;
+            // Clamp bet input and button state
+            const betInput = document.getElementById('bet-amount');
+            const raiseBtn = document.getElementById('raise-btn');
+            betInput.max = state.yourChips;
+            if (parseInt(betInput.value, 10) > state.yourChips) {
+                betInput.value = state.yourChips;
+            }
+            raiseBtn.disabled = state.yourChips < 1 || parseInt(betInput.value, 10) < 1 || parseInt(betInput.value, 10) > state.yourChips;
+            // Update blinds UI
+            updateBlindsUI();
+            updateBlindsInfo();
+        }
+
+        // Demo: advance community cards on check
+        document.getElementById('check-btn').onclick = function() {
+            if (state.community.length < 5) {
+                // Add a random card (for demo only)
+                const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+                const suits = ['♠','♥','♦','♣'];
+                let card;
+                do {
+                    card = {
+                        rank: ranks[Math.floor(Math.random()*ranks.length)],
+                        suit: suits[Math.floor(Math.random()*suits.length)]
+                    };
+                } while (state.community.some(c => c && c.rank === card.rank && c.suit === card.suit));
+                state.community.push(card);
+                updateUI();
+            }
+        };
+
+        // Demo: raise
+        document.getElementById('raise-btn').onclick = function() {
+            const amt = parseInt(document.getElementById('bet-amount').value, 10) || 0;
+            if (amt > 0 && amt <= state.yourChips) {
+                state.yourChips -= amt;
+                state.pot += amt;
+                updateUI();
+            } else {
+                alert("You cannot bet more than you have!");
+            }
+        };
+
+        // Prevent manual input of invalid bet amounts
+        document.getElementById('bet-amount').addEventListener('input', function() {
+            const val = parseInt(this.value, 10) || 0;
+            if (val > state.yourChips) {
+                this.value = state.yourChips;
+            } else if (val < 1) {
+                this.value = 1;
+            }
+            updateUI();
+        });
+
+        // Demo: fold
+        document.getElementById('fold-btn').onclick = function() {
+            alert('You folded! (Demo)');
+            // Rotate dealer and reset for demo
+            dealerIsYou = !dealerIsYou;
+            state = {
+                pot: 0,
+                yourChips: state.yourChips,
+                oppChips: state.oppChips,
+                yourCards: [{rank:'A',suit:'♠'}, {rank:'K',suit:'♥'}],
+                oppCards: [{rank:'?',suit:'?'}, {rank:'?',suit:'?'}],
+                community: [],
+            };
+            postBlinds();
+            updateUI();
+        };
+
+        // Initial blinds post
+        postBlinds();
+        updateUI();
+    </script>
+</body>
+</html>
