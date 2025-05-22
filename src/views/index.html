@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Texas Hold'em Poker</title>
+    <title>Sniper Hold'em Poker</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="blinds-info"></div>
-    <h1 style="text-align:center;">Texas Hold'em Poker</h1>
+    <div id="snipes-info" style="position:absolute;top:18px;left:32px;background:rgba(0,0,0,0.25);color:#ffe082;padding:7px 18px;border-radius:8px;font-size:1.1em;font-weight:bold;z-index:10;"></div>
+    <h1 style="text-align:center;">Sniper Hold'em Poker</h1>
     <div id="table">
         <div id="community-cards">
             <!-- Community cards will be rendered here -->
@@ -17,13 +18,13 @@
     </div>
     <div id="players">
         <div class="player" id="player-1">
-            <div><strong>You <span id="you-blind"></span></strong></div>
+            <div><strong>You <br> <span id="you-blind"></span></strong></div>
             <div class="hole-cards" id="your-cards"></div>
             <div>Chips: $<span id="your-chips">1000</span></div>
             <div id="your-rank" style="margin-top:5px;font-size:0.95em;"></div>
         </div>
         <div class="player" id="player-2">
-            <div><strong>Opponent <span id="opp-blind"></span></strong></div>
+            <div><strong>Opponent <br> <span id="opp-blind"></span></strong></div>
             <div class="hole-cards" id="opp-cards"></div>
             <div>Chips: $<span id="opp-chips">1000</span></div>
         </div>
@@ -34,7 +35,12 @@
         <button id="fold-btn">Fold</button>
         <input type="number" id="bet-amount" value="50" min="1" style="width:60px;">
     </div>
-
+    <div id="snipe-ui" style="display:none; margin:20px 0 0 0; text-align:center;">
+        <label for="snipe-rank"><strong>Snipe a hand:</strong></label>
+        <select id="snipe-rank"></select>
+        <select id="snipe-type"></select>
+        <button id="snipe-btn">Snipe</button>
+    </div>
     <script type="module">
         import { getHandRank } from './handHelper.js';
 
@@ -90,7 +96,7 @@
             // Community cards
             const comm = state.community;
             document.getElementById('community-cards').innerHTML =
-                [0,1,2,3,4].map(i => renderCard(comm[i])).join('');
+                [0,1,2,3].map(i => renderCard(comm[i])).join('');
             // Player cards
             document.getElementById('your-cards').innerHTML =
                 state.yourCards.map(renderCard).join('');
@@ -121,22 +127,128 @@
             updateBlindsInfo();
         }
 
+        // Helper to deal unique random cards
+        function dealUniqueCards(count, exclude=[]) {
+            const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+            const suits = ['♠','♥','♦','♣'];
+            const used = new Set(exclude.map(c => c ? c.rank + c.suit : ''));
+            const cards = [];
+            while (cards.length < count) {
+                const card = {
+                    rank: ranks[Math.floor(Math.random()*ranks.length)],
+                    suit: suits[Math.floor(Math.random()*suits.length)]
+                };
+                const key = card.rank + card.suit;
+                if (!used.has(key)) {
+                    used.add(key);
+                    cards.push(card);
+                }
+            }
+            return cards;
+        }
+
+        // Track sniped hands
+        let snipes = { you: null, opp: null };
+
+        function updateSnipesInfo() {
+            const div = document.getElementById('snipes-info');
+            let you = snipes.you ? `You: ${snipes.you}` : "You: (none)";
+            let opp = snipes.opp ? `Opp: ${snipes.opp}` : "Opponent: (none)";
+            div.innerHTML = `Sniped Hands<br><br>${you}<br>${opp}`;
+        }
+
+        function startRound() {
+            // Reset state except chips
+            state.community = [];
+            state.yourCards = dealUniqueCards(2);
+            state.oppCards = [{rank:'?',suit:'?'}, {rank:'?',suit:'?'}];
+            // Deal 4 unique community cards, but only reveal first 2
+            const comm = dealUniqueCards(4, state.yourCards);
+            state.community = [comm[0], comm[1], null, null];
+            snipes = { you: null, opp: null };
+            updateSnipesInfo();
+            document.getElementById('snipe-ui').style.display = "none";
+        }
+
+        // Snipe options
+        const RANK_NAMES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+        const HAND_TYPES = [
+            "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
+            "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush"
+        ];
+
+        function populateSnipeOptions() {
+            const rankSelect = document.getElementById('snipe-rank');
+            const typeSelect = document.getElementById('snipe-type');
+            if (!rankSelect || !typeSelect) return;
+            rankSelect.innerHTML = '';
+            typeSelect.innerHTML = '';
+            // Populate rank picklist
+            for (let rank of RANK_NAMES) {
+                const option = document.createElement('option');
+                option.value = rank;
+                option.textContent = rank;
+                rankSelect.appendChild(option);
+            }
+            // Populate hand type picklist
+            for (let hand of HAND_TYPES) {
+                const option = document.createElement('option');
+                option.value = hand;
+                option.textContent = hand;
+                typeSelect.appendChild(option);
+            }
+            // Disable all ranks except A for Royal Flush
+            typeSelect.onchange = function() {
+                if (typeSelect.value === "Royal Flush") {
+                    for (let opt of rankSelect.options) {
+                        opt.disabled = opt.value !== "A";
+                    }
+                    rankSelect.value = "A";
+                } else {
+                    for (let opt of rankSelect.options) {
+                        opt.disabled = false;
+                    }
+                }
+            };
+            // Trigger once in case default is Royal Flush
+            typeSelect.onchange();
+        }
+
         // Demo: advance community cards on check
         document.getElementById('check-btn').onclick = function() {
-            if (state.community.length < 5) {
-                // Add a random card (for demo only)
-                const ranks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
-                const suits = ['♠','♥','♦','♣'];
-                let card;
-                do {
-                    card = {
-                        rank: ranks[Math.floor(Math.random()*ranks.length)],
-                        suit: suits[Math.floor(Math.random()*suits.length)]
-                    };
-                } while (state.community.some(c => c && c.rank === card.rank && c.suit === card.suit));
-                state.community.push(card);
+            // Reveal last two community cards together if not already revealed
+            if (state.community.length === 4 && (state.community[2] === null || state.community[3] === null)) {
+                // Find already dealt cards
+                const revealed = state.community.filter(Boolean);
+                // Deal two more unique cards, but use the original hidden ones
+                const comm = dealUniqueCards(4, state.yourCards);
+                // Reveal the last two from the original set
+                state.community[2] = comm[2];
+                state.community[3] = comm[3];
                 updateUI();
+                setTimeout(() => {
+                    populateSnipeOptions();
+                    document.getElementById('snipe-ui').style.display = "";
+                }, 0);
             }
+        };
+
+        // Snipe button logic
+        document.getElementById('snipe-btn').onclick = function() {
+            const rank = document.getElementById('snipe-rank').value;
+            const type = document.getElementById('snipe-type').value;
+            snipes.you = `${rank} ${type}`;
+            // For demo: randomly assign opponent snipe
+            const oppRanks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+            const oppTypes = [
+                "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
+                "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush"
+            ];
+            let oppType = oppTypes[Math.floor(Math.random() * oppTypes.length)];
+            let oppRank = (oppType === "Royal Flush") ? "A" : oppRanks[Math.floor(Math.random() * oppRanks.length)];
+            snipes.opp = `${oppRank} ${oppType}`;
+            updateSnipesInfo();
+            document.getElementById('snipe-ui').style.display = "none";
         };
 
         // Demo: raise
@@ -171,17 +283,22 @@
                 pot: 0,
                 yourChips: state.yourChips,
                 oppChips: state.oppChips,
-                yourCards: [{rank:'A',suit:'♠'}, {rank:'K',suit:'♥'}],
-                oppCards: [{rank:'?',suit:'?'}, {rank:'?',suit:'?'}],
+                yourCards: [],
+                oppCards: [],
                 community: [],
             };
+            snipes = { you: null, opp: null };
+            updateSnipesInfo();
             postBlinds();
+            startRound();
             updateUI();
         };
 
-        // Initial blinds post
+        // Initial blinds post and round start
         postBlinds();
+        startRound();
         updateUI();
+        updateSnipesInfo();
     </script>
 </body>
 </html>

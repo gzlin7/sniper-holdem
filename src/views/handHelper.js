@@ -49,42 +49,67 @@ export function getHandRank(cards) {
     }
 
     // Evaluate all 5-card hands, return best
-    let best = {name: "High Card", value: 0};
+    let best = {name: "High Card", value: 0, high: null};
     let combos = getCombinations(cards, 5);
     for (let hand of combos) {
         let flush = isFlush(hand);
         let straight = isStraight(hand);
         let values = hand.map(c => RANK_ORDER[c.rank]).sort((a,b) => b-a);
         let counts = getCounts(hand);
+        // Build a map of rank values to their counts
+        let rankCounts = {};
+        hand.forEach(c => {
+            let v = RANK_ORDER[c.rank];
+            rankCounts[v] = (rankCounts[v] || 0) + 1;
+        });
+        let uniqueRanks = Object.keys(rankCounts).map(Number).sort((a, b) => b - a);
 
         if (straight && flush && values[0] === 14 && values[1] === 13) {
-            // Royal Flush
-            if (best.value < 9) best = {name: HANDS[9], value: 9};
+            if (best.value < 9) best = {name: "Royal Flush", value: 9, high: 14};
         } else if (straight && flush) {
-            // Straight Flush
-            if (best.value < 8) best = {name: HANDS[8], value: 8};
+            if (best.value < 8 || (best.value === 8 && values[0] > best.high))
+                best = {name: "Straight Flush", value: 8, high: values[0]};
         } else if (counts[0] === 4) {
-            // Four of a Kind
-            if (best.value < 7) best = {name: HANDS[7], value: 7};
+            // Four of a Kind: high is the rank of the quads
+            let quadRank = uniqueRanks.find(r => rankCounts[r] === 4);
+            if (best.value < 7 || (best.value === 7 && quadRank > best.high))
+                best = {name: "Four of a Kind", value: 7, high: quadRank};
         } else if (counts[0] === 3 && counts[1] === 2) {
-            // Full House
-            if (best.value < 6) best = {name: HANDS[6], value: 6};
+            // Full House: high is the rank of the trips
+            let tripsRank = uniqueRanks.find(r => rankCounts[r] === 3);
+            if (best.value < 6 || (best.value === 6 && tripsRank > best.high))
+                best = {name: "Full House", value: 6, high: tripsRank};
         } else if (flush) {
-            // Flush
-            if (best.value < 5) best = {name: HANDS[5], value: 5};
+            if (best.value < 5 || (best.value === 5 && values[0] > best.high))
+                best = {name: "Flush", value: 5, high: values[0]};
         } else if (straight) {
-            // Straight
-            if (best.value < 4) best = {name: HANDS[4], value: 4};
+            if (best.value < 4 || (best.value === 4 && values[0] > best.high))
+                best = {name: "Straight", value: 4, high: values[0]};
         } else if (counts[0] === 3) {
-            // Three of a Kind
-            if (best.value < 3) best = {name: HANDS[3], value: 3};
+            // Three of a Kind: high is the rank of the trips
+            let tripsRank = uniqueRanks.find(r => rankCounts[r] === 3);
+            if (best.value < 3 || (best.value === 3 && tripsRank > best.high))
+                best = {name: "Three of a Kind", value: 3, high: tripsRank};
         } else if (counts[0] === 2 && counts[1] === 2) {
-            // Two Pair
-            if (best.value < 2) best = {name: HANDS[2], value: 2};
+            // Two Pair: high is the higher of the two pairs
+            let pairRanks = uniqueRanks.filter(r => rankCounts[r] === 2);
+            let highPair = pairRanks[0];
+            if (best.value < 2 || (best.value === 2 && highPair > best.high))
+                best = {name: "Two Pair", value: 2, high: highPair};
         } else if (counts[0] === 2) {
-            // One Pair
-            if (best.value < 1) best = {name: HANDS[1], value: 1};
+            // One Pair: high is the rank of the pair
+            let pairRank = uniqueRanks.find(r => rankCounts[r] === 2);
+            if (best.value < 1 || (best.value === 1 && pairRank > best.high))
+                best = {name: "One Pair", value: 1, high: pairRank};
+        } else {
+            // High Card: high is the highest card
+            if (best.value < 0 || (best.value === 0 && values[0] > best.high))
+                best = {name: "High Card", value: 0, high: values[0]};
         }
     }
-    return best;
+
+    // Map high card value to rank string
+    const RANK_NAMES = {2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'10',11:'J',12:'Q',13:'K',14:'A'};
+    let prefix = best.high ? `${RANK_NAMES[best.high]} ` : '';
+    return { name: prefix + best.name, value: best.value };
 }
