@@ -12,19 +12,19 @@
     <div id="history-log"></div>
     <h1 style="text-align:center;">Sniper Hold'em Poker</h1>
     <div id="table">
-        <div id="community-cards">
+        <div id="community-cards" style="visibility:hidden;">
             <!-- Community cards will be rendered here -->
         </div>
-        <div id="pot">Pot: $<span id="pot-amount">0</span></div>
+        <div id="pot" style="visibility:hidden;">Pot: $<span id="pot-amount">0</span></div>
     </div>
     <div id="players">
-        <div class="player" id="player-1">
+        <div class="player" id="player-1" style="visibility:hidden;">
             <div><strong>You <br> <span id="you-blind"></span></strong></div>
             <div class="hole-cards" id="your-cards"></div>
             <div>Chips: $<span id="your-chips">1000</span></div>
             <div id="your-rank" style="margin-top:5px;font-size:0.95em;"></div>
         </div>
-        <div class="player" id="player-2">
+        <div class="player" id="player-2" style="visibility:hidden;">
             <div><strong>Opponent <br> <span id="opp-blind"></span></strong></div>
             <div class="hole-cards" id="opp-cards"></div>
             <div>Chips: $<span id="opp-chips">1000</span></div>
@@ -32,10 +32,10 @@
         </div>
     </div>
     <div id="controls">
-        <button id="fold-btn">Fold</button>
-        <button id="check-btn">Check</button>
-        <button id="raise-btn">Raise</button>
-        <input type="number" id="bet-amount" value="50" min="1" style="width:60px;">
+        <button id="fold-btn" disabled>Fold</button>
+        <button id="check-btn" disabled>Check</button>
+        <button id="raise-btn" disabled>Raise</button>
+        <input type="number" id="bet-amount" value="50" min="1" style="width:60px;" disabled>
     </div>
     <div id="snipe-ui" style="display:none; margin:20px 0 0 0; text-align:center;">
         <label for="snipe-rank"><strong>Snipe a hand:</strong></label>
@@ -43,6 +43,7 @@
         <select id="snipe-type"></select>
         <button id="snipe-btn">Snipe</button>
     </div>
+    <script src="/socket.io/socket.io.js"></script>
     <script type="module">
         import { getHandRank } from './handHelper.js';
         import { checkGameOver } from './gameLogic.js';
@@ -454,6 +455,186 @@
             });
         }
 
+        // --- Multiplayer logic ---
+        const socket = io();
+        let myRole = null;
+        let myRoom = null;
+        let multiplayerReady = false;
+        let myTurn = false;
+
+        function setMultiplayerReady(ready) {
+            multiplayerReady = ready;
+            // Show/hide cards and controls based on multiplayerReady
+            const vis = ready ? "visible" : "hidden";
+            document.getElementById('community-cards').style.visibility = vis;
+            document.getElementById('pot').style.visibility = vis;
+            document.getElementById('player-1').style.visibility = vis;
+            document.getElementById('player-2').style.visibility = vis;
+            updateTurnUI();
+        }
+
+        // Helper: send full state to opponent
+        function sendState(action, extra = {}) {
+            if (myRoom) {
+                socket.emit("game-action", {
+                    room: myRoom,
+                    action,
+                    data: {
+                        state,
+                        snipes,
+                        sniped,
+                        oppRealCards,
+                        ...extra
+                    }
+                });
+            }
+        }
+
+        // Helper: apply received state from opponent
+        function applyState(data) {
+            // Deep copy to avoid reference issues
+            state = JSON.parse(JSON.stringify(data.state));
+            snipes = JSON.parse(JSON.stringify(data.snipes));
+            sniped = JSON.parse(JSON.stringify(data.sniped));
+            oppRealCards = JSON.parse(JSON.stringify(data.oppRealCards));
+            updateUI();
+            updateSnipesInfo();
+        }
+
+        socket.emit("join-game");
+
+        socket.on("waiting", () => {
+            setMultiplayerReady(false);
+            alert("Waiting for an opponent to join...");
+        });
+
+        socket.on("game-start", ({ role, room }) => {
+            myRole = role; // "you" or "opponent"
+            myRoom = room;
+            setMultiplayerReady(true);
+            myTurn = (myRole === "you");
+            setTurn(myTurn ? "you" : "opp");
+            // On new game, always sync state from "you" player
+            if (myRole === "you") {
+                sendState("sync");
+            }
+        });
+
+        // Listen for opponent actions and update state accordingly
+        socket.on("game-action", ({ action, data }) => {
+            if (action === "sync") {
+                // Initial sync from "you" player
+                applyState(data);
+                updateUI();
+                updateSnipesInfo();
+            } else if (action === "raise") {
+                applyState(data);
+                addHistoryEntry("Opponent raised $" + data.lastAmount);
+                myTurn = true;
+                setTurn("you");
+            } else if (action === "check") {
+                applyState(data);
+                addHistoryEntry("Opponent checked");
+                myTurn = true;
+                setTurn("you");
+            } else if (action === "fold") {
+                applyState(data);
+                addHistoryEntry("Opponent folded");
+                alert("Opponent folded! You win the pot.");
+                myTurn = (myRole === "you");
+                setTurn(myTurn ? "you" : "opp");
+            } else if (action === "snipe") {
+                applyState(data);
+                addHistoryEntry(`Opponent sniped: ${snipes.opp}`);
+                document.getElementById('snipe-ui').style.display = "none";
+                checkGameOver({
+                    state,
+                    snipes,
+                    sniped,
+                    oppRealCards,
+                    addHistoryEntry,
+                    postBlinds,
+                    startRound,
+                    updateUI
+                });
+            } else if (action === "new-round") {
+                applyState(data);
+                myTurn = (myRole === "you");
+                setTurn(myTurn ? "you" : "opp");
+            }
+        });
+
+        // Only allow game actions if multiplayerReady and it's your turn
+        function canPlay() {
+            return multiplayerReady && myTurn;
+        }
+
+        // User actions: always send state after local update
+        document.getElementById('raise-btn').onclick = function() {
+            if (!canPlay()) return;
+            const amt = parseInt(document.getElementById('bet-amount').value, 10) || 0;
+            if (amt > 0 && amt <= state.yourChips) {
+                state.yourChips -= amt;
+                state.pot += amt;
+                addHistoryEntry(`You raised $${amt}`);
+                updateUI();
+                myTurn = false;
+                setTurn("opp");
+                sendState("raise", { lastAmount: amt });
+            } else {
+                alert("You cannot bet more than you have!");
+            }
+        };
+
+        document.getElementById('check-btn').onclick = function() {
+            if (!canPlay()) return;
+            if (state.community.length === 4 && (state.community[2] === null || state.community[3] === null)) {
+                const comm = dealUniqueCards(4, state.yourCards);
+                state.community[2] = comm[2];
+                state.community[3] = comm[3];
+                addHistoryEntry("Community cards revealed");
+                updateUI();
+                setTimeout(() => {
+                    populateSnipeOptions();
+                    document.getElementById('snipe-ui').style.display = "";
+                }, 0);
+            }
+            addHistoryEntry("You checked");
+            myTurn = false;
+            setTurn("opp");
+            sendState("check");
+        };
+
+        document.getElementById('fold-btn').onclick = function() {
+            if (!canPlay()) return;
+            alert('You folded!');
+            addHistoryEntry("You folded");
+            state.oppChips += state.pot;
+            state.pot = 0;
+            updateUI();
+            sendState("fold");
+            addHistoryEntry("New Round");
+            postBlinds();
+            startRound();
+            updateUI();
+            sendState("new-round");
+            myTurn = (myRole === "you");
+            setTurn(myTurn ? "you" : "opp");
+        };
+
+        document.getElementById('snipe-btn').onclick = function() {
+            if (!canPlay()) return;
+            const rank = document.getElementById('snipe-rank').value;
+            const type = document.getElementById('snipe-type').value;
+            snipes.you = `${rank} ${type}`;
+            sniped.you = true;
+            addHistoryEntry(`You sniped: ${rank} ${type}`);
+            updateSnipesInfo();
+            document.getElementById('snipe-ui').style.display = "none";
+            sendState("snipe");
+            // Wait for opponent's snipe (handled in socket.on("game-action"))
+        };
+
         // Initial blinds post and round start
         postBlinds();
         startRound();
@@ -461,6 +642,7 @@
         updateSnipesInfo();
         setTurn("you");
         updateHistoryLog();
+        setMultiplayerReady(false); // Hide cards/controls until multiplayer ready
     </script>
 </body>
 </html>
