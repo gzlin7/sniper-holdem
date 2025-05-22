@@ -9,6 +9,7 @@
 <body>
     <div id="blinds-info"></div>
     <div id="snipes-info" style="position:absolute;top:18px;left:32px;background:rgba(0,0,0,0.25);color:#ffe082;padding:7px 18px;border-radius:8px;font-size:1.1em;font-weight:bold;z-index:10;"></div>
+    <div id="history-log"></div>
     <h1 style="text-align:center;">Sniper Hold'em Poker</h1>
     <div id="table">
         <div id="community-cards">
@@ -27,12 +28,13 @@
             <div><strong>Opponent <br> <span id="opp-blind"></span></strong></div>
             <div class="hole-cards" id="opp-cards"></div>
             <div>Chips: $<span id="opp-chips">1000</span></div>
+            <div id="opp-rank" style="margin-top:5px;font-size:0.95em;"></div>
         </div>
     </div>
     <div id="controls">
-        <button id="raise-btn">Raise</button>
-        <button id="check-btn">Check</button>
         <button id="fold-btn">Fold</button>
+        <button id="check-btn">Check</button>
+        <button id="raise-btn">Raise</button>
         <input type="number" id="bet-amount" value="50" min="1" style="width:60px;">
     </div>
     <div id="snipe-ui" style="display:none; margin:20px 0 0 0; text-align:center;">
@@ -43,6 +45,7 @@
     </div>
     <script type="module">
         import { getHandRank } from './handHelper.js';
+        import { checkGameOver } from './gameLogic.js';
 
         // Card representation
         function renderCard(card) {
@@ -114,6 +117,24 @@
                 rankText = "Hand: " + rank.name;
             }
             document.getElementById('your-rank').textContent = rankText;
+
+            // Show opponent hand rank if cards are revealed
+            const oppAllCards = state.oppCards.concat(state.community.filter(Boolean));
+            let oppRankText = "";
+            // Only show if opponent cards are revealed (not '?')
+            if (
+                state.oppCards.length === 2 &&
+                state.oppCards[0] &&
+                state.oppCards[1] &&
+                state.oppCards[0].rank !== '?' &&
+                state.oppCards[1].rank !== '?' &&
+                oppAllCards.length >= 5
+            ) {
+                const oppRank = getHandRank(oppAllCards);
+                oppRankText = "Hand: " + oppRank.name;
+            }
+            document.getElementById('opp-rank').textContent = oppRankText;
+
             // Clamp bet input and button state
             const betInput = document.getElementById('bet-amount');
             const raiseBtn = document.getElementById('raise-btn');
@@ -149,12 +170,21 @@
 
         // Track sniped hands
         let snipes = { you: null, opp: null };
+        let sniped = { you: false, opp: false };
+        let oppRealCards = [];
 
         function updateSnipesInfo() {
             const div = document.getElementById('snipes-info');
             let you = snipes.you ? `You: ${snipes.you}` : "You: (none)";
             let opp = snipes.opp ? `Opp: ${snipes.opp}` : "Opponent: (none)";
             div.innerHTML = `Sniped Hands<br><br>${you}<br>${opp}`;
+        }
+
+        function resetSnipes() {
+            snipes = { you: null, opp: null };
+            sniped = { you: false, opp: false };
+            oppRealCards = [];
+            updateSnipesInfo();
         }
 
         function startRound() {
@@ -165,8 +195,7 @@
             // Deal 4 unique community cards, but only reveal first 2
             const comm = dealUniqueCards(4, state.yourCards);
             state.community = [comm[0], comm[1], null, null];
-            snipes = { you: null, opp: null };
-            updateSnipesInfo();
+            resetSnipes();
             document.getElementById('snipe-ui').style.display = "none";
         }
 
@@ -225,12 +254,19 @@
                 // Reveal the last two from the original set
                 state.community[2] = comm[2];
                 state.community[3] = comm[3];
+                addHistoryEntry("Community cards revealed");
                 updateUI();
                 setTimeout(() => {
                     populateSnipeOptions();
                     document.getElementById('snipe-ui').style.display = "";
                 }, 0);
             }
+            addHistoryEntry("You checked");
+            setTurn("opp");
+            setTimeout(() => {
+                opponentMove();
+                setTurn("you");
+            }, 1200);
         };
 
         // Snipe button logic
@@ -238,7 +274,9 @@
             const rank = document.getElementById('snipe-rank').value;
             const type = document.getElementById('snipe-type').value;
             snipes.you = `${rank} ${type}`;
-            // For demo: randomly assign opponent snipe
+            sniped.you = true;
+            addHistoryEntry(`You sniped: ${rank} ${type}`);
+            // For demo: randomly assign opponent snipe and real cards
             const oppRanks = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
             const oppTypes = [
                 "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
@@ -247,9 +285,52 @@
             let oppType = oppTypes[Math.floor(Math.random() * oppTypes.length)];
             let oppRank = (oppType === "Royal Flush") ? "A" : oppRanks[Math.floor(Math.random() * oppRanks.length)];
             snipes.opp = `${oppRank} ${oppType}`;
+            sniped.opp = true;
+            addHistoryEntry(`Opponent sniped: ${oppRank} ${oppType}`);
+            // Reveal opponent cards (random demo cards)
+            oppRealCards = dealUniqueCards(2, state.yourCards.concat(state.community.filter(Boolean)));
             updateSnipesInfo();
             document.getElementById('snipe-ui').style.display = "none";
+            checkGameOver({
+                state,
+                snipes,
+                sniped,
+                oppRealCards,
+                addHistoryEntry,
+                postBlinds,
+                startRound,
+                updateUI
+            });
         };
+
+        function parseSnipe(snipe) {
+            // Returns {rank, type}
+            if (!snipe) return null;
+            const idx = snipe.indexOf(' ');
+            return { rank: snipe.slice(0, idx), type: snipe.slice(idx + 1) };
+        }
+
+        function handTypeValue(type) {
+            // Matches getHandRank value
+            switch (type) {
+                case "High Card": return 0;
+                case "One Pair": return 1;
+                case "Two Pair": return 2;
+                case "Three of a Kind": return 3;
+                case "Straight": return 4;
+                case "Flush": return 5;
+                case "Full House": return 6;
+                case "Four of a Kind": return 7;
+                case "Straight Flush": return 8;
+                case "Royal Flush": return 9;
+                default: return -1;
+            }
+        }
+
+        function rankValue(rank) {
+            const RANK_ORDER = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14};
+            return RANK_ORDER[rank] || 0;
+        }
 
         // Demo: raise
         document.getElementById('raise-btn').onclick = function() {
@@ -257,7 +338,13 @@
             if (amt > 0 && amt <= state.yourChips) {
                 state.yourChips -= amt;
                 state.pot += amt;
+                addHistoryEntry(`You raised $${amt}`);
                 updateUI();
+                setTurn("opp");
+                setTimeout(() => {
+                    opponentMove();
+                    setTurn("you");
+                }, 1200);
             } else {
                 alert("You cannot bet more than you have!");
             }
@@ -277,6 +364,7 @@
         // Demo: fold
         document.getElementById('fold-btn').onclick = function() {
             alert('You folded! (Demo)');
+            addHistoryEntry("You folded");
             // Rotate dealer and reset for demo
             dealerIsYou = !dealerIsYou;
             state = {
@@ -292,13 +380,87 @@
             postBlinds();
             startRound();
             updateUI();
+            setTurn("opp");
+            setTimeout(() => {
+                opponentMove();
+                setTurn("you");
+            }, 1200);
         };
+
+        // Game history log
+        let history = [];
+
+        function addHistoryEntry(entry) {
+            history.unshift(entry);
+            updateHistoryLog();
+        }
+
+        function updateHistoryLog() {
+            const logDiv = document.getElementById('history-log');
+            logDiv.innerHTML = "<strong>Game History</strong><br><br>" + history.map(e => `<div>${e}</div>`).join('');
+        }
+
+        // Simulate opponent move for demo
+        function opponentMove() {
+            // Randomly choose an action for the opponent
+            const actions = [
+                () => { addHistoryEntry("Opponent checked"); },
+                () => { 
+                    const amt = Math.floor(Math.random() * 100) + 10;
+                    state.oppChips -= amt;
+                    state.pot += amt;
+                    addHistoryEntry(`Opponent raised $${amt}`);
+                },
+                () => { addHistoryEntry("Opponent folded"); }
+            ];
+            // For demo, avoid folding if pot is 0
+            let idx = Math.random();
+            if (state.pot === 0) {
+                idx = idx < 0.5 ? 0 : 1; // Only check or raise
+            } else {
+                idx = idx < 0.33 ? 0 : (idx < 0.66 ? 1 : 2);
+            }
+            actions[Math.floor(idx * actions.length)]();
+            updateUI();
+        }
+
+        // Turn state: "you" or "opp"
+        let turn = "you";
+
+        function setTurn(newTurn) {
+            turn = newTurn;
+            updateTurnUI();
+        }
+
+        function updateTurnUI() {
+            // Highlight player whose turn it is
+            const youDiv = document.getElementById('player-1');
+            const oppDiv = document.getElementById('player-2');
+            if (turn === "you") {
+                youDiv.style.border = "4px solid #ffe082";
+                oppDiv.style.border = "";
+            } else {
+                youDiv.style.border = "";
+                oppDiv.style.border = "4px solid #ffe082";
+            }
+            // Enable/disable controls
+            const controls = document.querySelectorAll('#controls button, #controls input');
+            controls.forEach(el => {
+                if (turn === "you") {
+                    el.disabled = false;
+                } else {
+                    el.disabled = true;
+                }
+            });
+        }
 
         // Initial blinds post and round start
         postBlinds();
         startRound();
         updateUI();
         updateSnipesInfo();
+        setTurn("you");
+        updateHistoryLog();
     </script>
 </body>
 </html>

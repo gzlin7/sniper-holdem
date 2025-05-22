@@ -47,6 +47,7 @@ body {
     padding: 10px 20px;
     text-align: center;
     min-width: 160px;
+    transition: border 0.2s;
 }
 .hole-cards {
     display: flex;
@@ -89,4 +90,20 @@ button:disabled {
     font-size: 1.1em;
     font-weight: bold;
     z-index: 10;
+}
+#history-log {
+    position: absolute;
+    top: 120px;
+    right: 32px;
+    width: 220px;
+    min-height: 200px;
+    background: rgba(0,0,0,0.18);
+    color: #ffe082;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 1em;
+    font-family: monospace;
+    z-index: 5;
+    max-height: 400px;
+    overflow-y: auto;
 }
