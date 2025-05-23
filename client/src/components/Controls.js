@@ -164,13 +164,12 @@ export function Controls({
   function handleCall() {
     let callAmount;
     if (myRole === "player1") {
-      // For demo: call the difference between p2 and p1 chips (simulate a call)
-      callAmount = Math.max(0, state.p2.chips - state.p1.chips);
+      callAmount = Math.max(0, state.p2.bet - state.p1.bet);
       if (callAmount > state.p1.chips) callAmount = state.p1.chips;
       if (callAmount <= 0) return;
       const newState = {
         ...state,
-        p1: { ...state.p1, chips: state.p1.chips - callAmount },
+        p1: { ...state.p1, chips: state.p1.chips - callAmount, bet: state.p1.bet + callAmount },
         pot: state.pot + callAmount
       };
       addHistoryEntry(`You called $${callAmount}`);
@@ -185,12 +184,12 @@ export function Controls({
         [`You called $${callAmount}`, ...history]
       );
     } else {
-      callAmount = Math.max(0, state.p1.chips - state.p2.chips);
+      callAmount = Math.max(0, state.p1.bet - state.p2.bet);
       if (callAmount > state.p2.chips) callAmount = state.p2.chips;
       if (callAmount <= 0) return;
       const newState = {
         ...state,
-        p2: { ...state.p2, chips: state.p2.chips - callAmount },
+        p2: { ...state.p2, chips: state.p2.chips - callAmount, bet: state.p2.bet + callAmount },
         pot: state.pot + callAmount
       };
       addHistoryEntry(`You called $${callAmount}`);
