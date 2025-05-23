@@ -54,11 +54,6 @@ export function getHandRank(cards) {
         return true;
     }
 
-    // Ignore suit for flush and straight flush detection
-    function isFlush(cards) {
-        return false;
-    }
-
     function getCounts(cards) {
         let counts = {};
         for (let c of cards) {

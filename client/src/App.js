@@ -33,8 +33,9 @@ function App() {
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
   const [snipingPhase, setSnipingPhase] = useState(false);
+  const [hideOpponent, setHideOpponent] = useState(true); // New state for hiding opponent's card
 
-  // Internal state: p1/p2 instead of you/opp
+  // Internal state 
   const [state, setState] = useState({
     p1: { chips: 100, cards: [], folded: false, bet: 0 },
     p2: { chips: 100, cards: [], folded: false, bet: 0 },
@@ -55,6 +56,7 @@ function App() {
   // --- Game over handler ---
   function handleGameOver({ state: finalState }) {
     // Reveal both players' cards and hand ranks in the UI
+    setHideOpponent(false);
 
     const p1Hand = [
       ...finalState.p1.cards,
@@ -135,40 +137,43 @@ function App() {
       }
     }
     setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
-    alert(`Game Over: ${winner}`);
-
-    // Give the winner the pot chips (if not a tie), or split if tie
-    setState(prev => {
-      let newP1 = { ...prev.p1 };
-      let newP2 = { ...prev.p2 };
-      let newPot = prev.pot;
-      if (isTie && prev.pot > 0) {
-        const half = Math.round(prev.pot / 2);
-        newP1.chips += half;
-        newP2.chips += prev.pot - half;
-        newPot = 0;
-      } else if (winnerKey === "p1") {
-        newP1.chips += prev.pot;
-        newPot = 0;
-      } else if (winnerKey === "p2") {
-        newP2.chips += prev.pot;
-        newPot = 0;
-      }
-      // Reset snipes and snipingPhase, keep chips and pot as above
-      return {
-        ...prev,
-        p1: { ...newP1, cards: [], folded: false, bet: 0 },
-        p2: { ...newP2, cards: [], folded: false, bet: 0 },
-        community: [],
-        pot: newPot,
-        snipes: { player1: null, player2: null }
-      };
-    });
-    setSnipingPhase(false);
+    // Force rerender before alert by using setTimeout
+    setTimeout(() => {
+      alert(`Game Over: ${winner}`);
+    }, 2000);
 
     // Start a new round, but keep chips and pot the same
     setTimeout(() => {
-      setState(prev => {
+      setSnipingPhase(false);
+      // Give the winner the pot chips (if not a tie), or split if tie
+      setState((prev) => {
+        let newP1 = { ...prev.p1 };
+        let newP2 = { ...prev.p2 };
+        let newPot = prev.pot;
+        if (isTie && prev.pot > 0) {
+          const half = Math.round(prev.pot / 2);
+          newP1.chips += half;
+          newP2.chips += prev.pot - half;
+          newPot = 0;
+        } else if (winnerKey === "p1") {
+          newP1.chips += prev.pot;
+          newPot = 0;
+        } else if (winnerKey === "p2") {
+          newP2.chips += prev.pot;
+          newPot = 0;
+        }
+        // Reset snipes and snipingPhase, keep chips and pot as above
+        return {
+          ...prev,
+          p1: { ...newP1, cards: [], folded: false, bet: 0 },
+          p2: { ...newP2, cards: [], folded: false, bet: 0 },
+          community: [],
+          pot: newPot,
+          snipes: { player1: null, player2: null },
+        };
+      });
+      setHideOpponent(true); // Hide opponent's cards again
+      setState((prev) => {
         // Deal new cards, keep chips and pot
         const all = dealUniqueCards(6);
         const p1Cards = [all[0], all[1]];
@@ -179,7 +184,7 @@ function App() {
           p1: { ...prev.p1, cards: p1Cards, folded: false, bet: 0 },
           p2: { ...prev.p2, cards: p2Cards, folded: false, bet: 0 },
           community,
-          snipes: { player1: null, player2: null }
+          snipes: { player1: null, player2: null },
         };
       });
       setP1Folded(false);
@@ -195,10 +200,10 @@ function App() {
           p1Folded: false,
           p2Folded: false,
           whoseTurn: "player1",
-          history: ["New round started"]
+          history: ["New round started"],
         });
       }
-    }, 1200);
+    }, 5000);
   }
 
   // --- Sockets setup ---
@@ -319,25 +324,6 @@ function App() {
   // --- Sniping UI state ---
   const [mySnipe, setMySnipe] = useState({ rank: "", type: "" });
 
-  // For UI, map p1/p2 to you/opp based on myRole
-  let your, opp, yourBet, oppBet;
-  if (myRole === "player1") {
-    your = state.p1;
-    opp = { ...state.p2, cards: state.p2.cards.map(() => ({ rank: "?", suit: "?" })) };
-    yourBet = state.p1.bet || 0;
-    oppBet = state.p2.bet || 0;
-  } else if (myRole === "player2") {
-    your = state.p2;
-    opp = { ...state.p1, cards: state.p1.cards.map(() => ({ rank: "?", suit: "?" })) };
-    yourBet = state.p2.bet || 0;
-    oppBet = state.p1.bet || 0;
-  } else {
-    your = { chips: 0, cards: [], folded: false, bet: 0 };
-    opp = { chips: 0, cards: [], folded: false, bet: 0 };
-    yourBet = 0;
-    oppBet = 0;
-  }
-
   return (
     <div>
       <BlindsInfo smallBlind={SMALL_BLIND} bigBlind={BIG_BLIND} />
@@ -351,17 +337,12 @@ function App() {
       )}
       <Table community={state.community} pot={state.pot} />
       <Players
-        yourCards={your.cards}
-        oppCards={opp.cards}
-        yourChips={your.chips}
-        oppChips={opp.chips}
         yourRole={myRole}
         oppRole={myRole === "player1" ? "player2" : "player1"}
         myTurn={whoseTurn === myRole}
-        yourBet={yourBet}
-        oppBet={oppBet}
         dealerIsP1={dealerIsP1}
         state={state}
+        hideOpponent={hideOpponent}
       />
       {state.snipes.player1 || state.snipes.player2 || snipingPhase ? (
         <SnipingUI
