@@ -14,7 +14,6 @@ export function Controls({
   p2Folded,
   setP2Folded,
   emitMove,
-  dealerIsP1,
   addHistoryEntry,
   history,
   setWhoseTurn,

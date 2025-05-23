@@ -37,7 +37,7 @@ export function Players({
           <strong>
             {yourRole}{" "}
             <span id="you-blind">
-              {(yourRole == "Player 1") == dealerIsP1 ? "(SB)" : "(BB)"}
+              {(yourRole === "Player 1") === dealerIsP1 ? "(SB)" : "(BB)"}
             </span>
           </strong>
         </div>
@@ -69,7 +69,7 @@ export function Players({
           <strong>
             {oppRole}{" "}
             <span id="opp-blind">
-              {(yourRole == "Player 1") == dealerIsP1 ? "(BB)" : "(SB)"}
+              {(yourRole === "Player 1") === dealerIsP1 ? "(BB)" : "(SB)"}
             </span>
           </strong>
         </div>

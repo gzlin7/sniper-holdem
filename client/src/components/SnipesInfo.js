@@ -1,5 +1,5 @@
 import React from "react";
-export function SnipesInfo({ snipes }) {
+export function SnipesInfo({ state }) {
   return (
     <div
       id="snipes-info"
@@ -16,9 +16,11 @@ export function SnipesInfo({ snipes }) {
         zIndex: 10,
       }}
     >
-      Sniped Hands<br /><br />
-      Player1: {snipes.player1 ? `${snipes.player1}` : "(none)"} <br />
-      Player2: {snipes.player2 ? `${snipes.player2}` : "(none)"}
+      Sniped Hands
+      <br />
+      <br />
+      Player1: {state.snipes.player1 ? `${state.snipes.player1}` : "(none)"} <br />
+      Player2: {state.snipes.player2 ? `${state.snipes.player2}` : "(none)"}
     </div>
   );
 }

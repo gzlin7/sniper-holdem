@@ -7,6 +7,7 @@ import { HistoryLog } from "./components/HistoryLog";
 import { Table } from "./components/Table";
 import { Players } from "./components/Players";
 import { Controls } from "./components/Controls";
+import { SnipingUI } from "./components/SnipingUI";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -23,7 +24,6 @@ function dealUniqueCards(count, exclude = []) {
 }
 
 function App() {
-  const [snipes, setSnipes] = useState([]);
   const [history, setHistory] = useState([]);
   const [dealerIsP1, setDealerIsP1] = useState(true);
   const [betAmount, setBetAmount] = useState(0);
@@ -40,6 +40,7 @@ function App() {
     community: [],
     pot: 0,
     snipingPhase: false,
+    snipes: {player1 : null, player2 :null} 
   });
 
   const socketRef = useRef(null);
@@ -126,10 +127,21 @@ function App() {
     const p2Cards = [all[2], all[3]];
     const community = [all[4], all[5], null, null];
     const newState = {
-      p1: { chips: 100 - (dealerIsP1 ? BIG_BLIND : SMALL_BLIND), cards: p1Cards, folded: false, bet: dealerIsP1 ? BIG_BLIND : SMALL_BLIND },
-      p2: { chips: 100 - (dealerIsP1 ? SMALL_BLIND : BIG_BLIND), cards: p2Cards, folded: false, bet: dealerIsP1 ? SMALL_BLIND : BIG_BLIND },
+      p1: {
+        chips: 100 - (dealerIsP1 ? BIG_BLIND : SMALL_BLIND),
+        cards: p1Cards,
+        folded: false,
+        bet: dealerIsP1 ? BIG_BLIND : SMALL_BLIND,
+      },
+      p2: {
+        chips: 100 - (dealerIsP1 ? SMALL_BLIND : BIG_BLIND),
+        cards: p2Cards,
+        folded: false,
+        bet: dealerIsP1 ? SMALL_BLIND : BIG_BLIND,
+      },
       community,
       pot: SMALL_BLIND + BIG_BLIND,
+      snipes: { player1: null, player2: null },
     };
     setState(newState);
     setP1Folded(false);
@@ -152,57 +164,6 @@ function App() {
 
   // --- Sniping UI state ---
   const [mySnipe, setMySnipe] = useState({ rank: "", type: "" });
-
-  // --- Sniping UI component ---
-  function SnipingUI() {
-    const HAND_TYPES = [
-      "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
-      "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush"
-    ];
-    const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
-    return (
-      <div style={{ textAlign: "center", margin: 24 }}>
-        <label>
-          <strong>Snipe a hand:&nbsp;</strong>
-          <select
-            value={mySnipe.rank}
-            onChange={e => setMySnipe(s => ({ ...s, rank: e.target.value }))}
-            disabled={snipes[myRole]}
-          >
-            <option value="">Rank</option>
-            {RANKS.map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-          &nbsp;
-          <select
-            value={mySnipe.type}
-            onChange={e => setMySnipe(s => ({ ...s, type: e.target.value }))}
-            disabled={snipes[myRole]}
-          >
-            <option value="">Hand Type</option>
-            {HAND_TYPES.map(t => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </label>
-        <button
-          style={{ marginLeft: 12 }}
-          disabled={
-            !mySnipe.rank || !mySnipe.type || !!snipes[myRole] || myRole !== whoseTurn
-          }
-          onClick={() => {
-            setSnipes(prev => ({ ...prev, [myRole]: `${mySnipe.rank} ${mySnipe.type}` }));
-            setMySnipe({ rank: "", type: "" });
-            console.log("Snipe submitted?:", mySnipe);
-            // Optionally: emit snipe to server here if needed
-          }}
-        >
-          Snipe
-        </button>
-      </div>
-    );
-  }
 
   // For UI, map p1/p2 to you/opp based on myRole
   let your, opp, yourBet, oppBet;
@@ -227,11 +188,22 @@ function App() {
     <div>
       {/* Show snipingPhase boolean for debugging/visibility */}
       // This is just for debugging, remove in production
-      <div style={{ position: "absolute", top: 0, left: 0, background: "#222", color: "#ffe082", padding: "6px 16px", borderRadius: 8, zIndex: 100 }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          background: "#222",
+          color: "#ffe082",
+          padding: "6px 16px",
+          borderRadius: 8,
+          zIndex: 100,
+        }}
+      >
         Sniping Phase: <b>{state.snipingPhase ? "true" : "false"}</b>
       </div>
       <BlindsInfo smallBlind={SMALL_BLIND} bigBlind={BIG_BLIND} />
-      <SnipesInfo snipes={snipes} />
+      <SnipesInfo state={state} />
       <HistoryLog history={history} />
       <h1 style={{ textAlign: "center" }}>Sniper Hold'em Poker</h1>
       {waiting && (
@@ -275,7 +247,17 @@ function App() {
           setLastCheck={setLastCheck}
         />
       ) : (
-        <SnipingUI />
+        <SnipingUI
+          mySnipe={mySnipe}
+          setMySnipe={setMySnipe}
+          myRole={myRole}
+          whoseTurn={whoseTurn}
+          setWhoseTurn={setWhoseTurn}
+          emitMove={emitMove}
+          history={history}
+          state={state}
+          setState={setState}
+        />
       )}
     </div>
   );
