@@ -117,28 +117,38 @@ export function Controls({
 
   function handleRaise() {
     let newState;
+    // Parse betAmount as integer
+    const raiseAmt = parseInt(betAmount, 10) || 0;
     if (myRole === "player1") {
-      if (betAmount > state.p1.chips) {
+      if (raiseAmt > state.p1.chips) {
         alert("You cannot bet more than you have!");
         return;
       }
       newState = {
         ...state,
-        p1: { ...state.p1, chips: state.p1.chips - betAmount },
-        pot: state.pot + betAmount
+        p1: { 
+          ...state.p1, 
+          chips: state.p1.chips - raiseAmt, 
+          bet: (state.p1.bet || 0) + raiseAmt // increment bet value
+        },
+        pot: state.pot + raiseAmt
       };
     } else {
-      if (betAmount > state.p2.chips) {
+      if (raiseAmt > state.p2.chips) {
         alert("You cannot bet more than you have!");
         return;
       }
       newState = {
         ...state,
-        p2: { ...state.p2, chips: state.p2.chips - betAmount },
-        pot: state.pot + betAmount
+        p2: { 
+          ...state.p2, 
+          chips: state.p2.chips - raiseAmt, 
+          bet: (state.p2.bet || 0) + raiseAmt // increment bet value
+        },
+        pot: state.pot + raiseAmt
       };
     }
-    addHistoryEntry(`You raised $${betAmount}`);
+    addHistoryEntry(`You raised $${raiseAmt}`);
     const nextTurn = myRole === "player1" ? "player2" : "player1";
     setState(newState);
     setWhoseTurn(nextTurn);
@@ -147,7 +157,7 @@ export function Controls({
       p1Folded,
       p2Folded,
       nextTurn,
-      [`You raised $${betAmount}`, ...history]
+      [`You raised $${raiseAmt}`, ...history]
     );
     setTimeout(() => setWhoseTurn(myRole), 800);
   }
