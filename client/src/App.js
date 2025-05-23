@@ -137,41 +137,43 @@ function App() {
       }
     }
     setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
-    alert(`Game Over: ${winner}`);
-
-    // Give the winner the pot chips (if not a tie), or split if tie
-    setState(prev => {
-      let newP1 = { ...prev.p1 };
-      let newP2 = { ...prev.p2 };
-      let newPot = prev.pot;
-      if (isTie && prev.pot > 0) {
-        const half = Math.round(prev.pot / 2);
-        newP1.chips += half;
-        newP2.chips += prev.pot - half;
-        newPot = 0;
-      } else if (winnerKey === "p1") {
-        newP1.chips += prev.pot;
-        newPot = 0;
-      } else if (winnerKey === "p2") {
-        newP2.chips += prev.pot;
-        newPot = 0;
-      }
-      // Reset snipes and snipingPhase, keep chips and pot as above
-      return {
-        ...prev,
-        p1: { ...newP1, cards: [], folded: false, bet: 0 },
-        p2: { ...newP2, cards: [], folded: false, bet: 0 },
-        community: [],
-        pot: newPot,
-        snipes: { player1: null, player2: null }
-      };
-    });
-    setSnipingPhase(false);
-    setHideOpponent(true); // Hide opponent's cards again
+    // Force rerender before alert by using setTimeout
+    setTimeout(() => {
+      alert(`Game Over: ${winner}`);
+    }, 2000);
 
     // Start a new round, but keep chips and pot the same
     setTimeout(() => {
-      setState(prev => {
+      setSnipingPhase(false);
+      // Give the winner the pot chips (if not a tie), or split if tie
+      setState((prev) => {
+        let newP1 = { ...prev.p1 };
+        let newP2 = { ...prev.p2 };
+        let newPot = prev.pot;
+        if (isTie && prev.pot > 0) {
+          const half = Math.round(prev.pot / 2);
+          newP1.chips += half;
+          newP2.chips += prev.pot - half;
+          newPot = 0;
+        } else if (winnerKey === "p1") {
+          newP1.chips += prev.pot;
+          newPot = 0;
+        } else if (winnerKey === "p2") {
+          newP2.chips += prev.pot;
+          newPot = 0;
+        }
+        // Reset snipes and snipingPhase, keep chips and pot as above
+        return {
+          ...prev,
+          p1: { ...newP1, cards: [], folded: false, bet: 0 },
+          p2: { ...newP2, cards: [], folded: false, bet: 0 },
+          community: [],
+          pot: newPot,
+          snipes: { player1: null, player2: null },
+        };
+      });
+      setHideOpponent(true); // Hide opponent's cards again
+      setState((prev) => {
         // Deal new cards, keep chips and pot
         const all = dealUniqueCards(6);
         const p1Cards = [all[0], all[1]];
@@ -182,7 +184,7 @@ function App() {
           p1: { ...prev.p1, cards: p1Cards, folded: false, bet: 0 },
           p2: { ...prev.p2, cards: p2Cards, folded: false, bet: 0 },
           community,
-          snipes: { player1: null, player2: null }
+          snipes: { player1: null, player2: null },
         };
       });
       setP1Folded(false);
@@ -198,10 +200,10 @@ function App() {
           p1Folded: false,
           p2Folded: false,
           whoseTurn: "player1",
-          history: ["New round started"]
+          history: ["New round started"],
         });
       }
-    }, 1200);
+    }, 5000);
   }
 
   // --- Sockets setup ---
