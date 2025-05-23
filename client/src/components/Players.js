@@ -19,7 +19,7 @@ function getHandRankText(cards, state) {
 
 export function Players({
   yourCards, oppCards, yourChips, oppChips,
-  yourRank, oppRank, yourRole = "Player 1", oppRole = "Player 2", myTurn,
+  yourRole = "Player 1", oppRole = "Player 2", myTurn,
   yourBet = 0, oppBet = 0, dealerIsP1, state
 }) {
   return (
