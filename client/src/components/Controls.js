@@ -100,7 +100,6 @@ export function Controls({
       revealCommunityCards(nextTurn);
       setLastCheck(null);
       setWhoseTurn(nextTurn);
-      setTimeout(() => setWhoseTurn(myRole), 800);
     } else {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       setLastCheck(myRole);
@@ -159,7 +158,6 @@ export function Controls({
       nextTurn,
       [`You raised $${raiseAmt}`, ...history]
     );
-    setTimeout(() => setWhoseTurn(myRole), 800);
   }
 
   // --- New: Call logic ---
@@ -186,7 +184,6 @@ export function Controls({
         nextTurn,
         [`You called $${callAmount}`, ...history]
       );
-      setTimeout(() => setWhoseTurn(myRole), 800);
     } else {
       callAmount = Math.max(0, state.p1.chips - state.p2.chips);
       if (callAmount > state.p2.chips) callAmount = state.p2.chips;
@@ -207,7 +204,6 @@ export function Controls({
         nextTurn,
         [`You called $${callAmount}`, ...history]
       );
-      setTimeout(() => setWhoseTurn(myRole), 800);
     }
   }
 

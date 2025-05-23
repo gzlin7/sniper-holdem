@@ -194,7 +194,6 @@ function App() {
       nextTurn,
       [`You raised $${raiseAmt}`, ...history]
     );
-    setTimeout(() => setWhoseTurn(myRole), 800);
   }
 
   // For UI, map p1/p2 to you/opp based on myRole
