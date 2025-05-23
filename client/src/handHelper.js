@@ -7,6 +7,7 @@ export function getHandRank(cards) {
         "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush"
     ];
 
+
     // Helper: get all 5-card combinations
     function getCombinations(arr, k) {
         let results = [];
