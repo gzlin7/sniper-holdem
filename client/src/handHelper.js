@@ -1,7 +1,22 @@
+export     const RANK_ORDER = {
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  6: 6,
+  7: 7,
+  8: 8,
+  9: 9,
+  10: 10,
+  J: 11,
+  Q: 12,
+  K: 13,
+  A: 14,
+};
+
 export function getHandRank(cards) {
     // cards: array of {rank, suit}
     // Returns: {name: string, value: number}
-    const RANK_ORDER = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'J':11,'Q':12,'K':13,'A':14};
 
     // Remove suit info for all cards
     const cardsNoSuit = cards.map(c => ({ rank: c.rank }));

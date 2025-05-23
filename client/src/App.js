@@ -8,7 +8,7 @@ import { Table } from "./components/Table";
 import { Players } from "./components/Players";
 import { Controls } from "./components/Controls";
 import { SnipingUI } from "./components/SnipingUI";
-import { getHandRank } from "./handHelper";
+import { getHandRank, RANK_ORDER } from "./handHelper";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -112,11 +112,21 @@ function App() {
       winner = "Player 2 wins!";
       winnerKey = "p2";
     } else {
-      // If same hand type, compare high card
-      if (p1Rank.high > p2Rank.high) {
+      // If same hand type, compare the value of the card in the name (prefix)
+      // e.g. "A High Card", "K One Pair", etc.
+      function extractPrefixValue(rankObj) {
+        // Try to extract the prefix card value from the name
+        if (!rankObj || !rankObj.name) return 0;
+        const prefix = rankObj.name.split(" ")[0];
+        return RANK_ORDER[prefix] || 0;
+      }
+      const p1Prefix = extractPrefixValue(p1Rank);
+      const p2Prefix = extractPrefixValue(p2Rank);
+
+      if (p1Prefix > p2Prefix) {
         winner = "Player 1 wins!";
         winnerKey = "p1";
-      } else if (p2Rank.high > p1Rank.high) {
+      } else if (p2Prefix > p1Prefix) {
         winner = "Player 2 wins!";
         winnerKey = "p2";
       } else {
