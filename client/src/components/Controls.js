@@ -222,29 +222,38 @@ export function Controls({
     }
   }
 
+  // canCheck = True means you can only check or raise (should be called bet)
+  // canCheck = False means you can only fold, call, or raise
+  let canCheck = true;
+  if (myRole === "player1") {
+    canCheck = (state.p2.bet - state.p1.bet) <= 0;
+  } else if (myRole === "player2") {
+    canCheck = (state.p1.bet - state.p2.bet) <= 0;
+  }
+
   return (
     <div id="controls">
       <button
         id="fold-btn"
         onClick={handleFold}
-        disabled={disabled}
-        style={disabled ? { opacity: 0.5, pointerEvents: "none" } : {}}
+        disabled={disabled || canCheck}
+        style={(disabled || canCheck) ? { opacity: 0.5, pointerEvents: "none" } : {}}
       >
         Fold
       </button>
       <button
         id="check-btn"
         onClick={handleCheck}
-        disabled={disabled}
-        style={disabled ? { opacity: 0.5, pointerEvents: "none" } : {}}
+        disabled={disabled || !canCheck}
+        style={(disabled || !canCheck) ? { opacity: 0.5, pointerEvents: "none" } : {}}
       >
         Check
       </button>
       <button
         id="call-btn"
         onClick={handleCall}
-        disabled={disabled}
-        style={disabled ? { opacity: 0.5, pointerEvents: "none" } : {}}
+        disabled={disabled || canCheck}
+        style={(disabled || canCheck) ? { opacity: 0.5, pointerEvents: "none" } : {}}
       >
         Call
       </button>
