@@ -72,7 +72,8 @@ export function Controls({
         p1Folded,
         p2Folded,
         nextTurn,
-        [myRole + " checked", ...history, "Showdown"]
+        // TODO: Handle reading what other role did 
+        ["Showdown", myRole + " ???", ...history]
       );
     }
   }
