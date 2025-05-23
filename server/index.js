@@ -59,6 +59,16 @@ io.on("connection", (socket) => {
     }
   });
 
+  // Listen for game-over and send to both players in the room
+  socket.on("game-over", (data) => {
+    console.log("Game over event received")
+    const rooms = Array.from(socket.rooms).filter((r) => r !== socket.id);
+    if (rooms.length > 0) {
+      // Send to both players in the room
+      io.to(rooms[0]).emit("game-over", data);
+    }
+  });
+
   socket.on("disconnect", () => {
     if (waitingPlayer === socket) waitingPlayer = null;
   });

@@ -8,6 +8,7 @@ import { Table } from "./components/Table";
 import { Players } from "./components/Players";
 import { Controls } from "./components/Controls";
 import { SnipingUI } from "./components/SnipingUI";
+import { getHandRank } from "./handHelper";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -32,6 +33,7 @@ function App() {
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
   const [lastCheck, setLastCheck] = useState(null);
+  const [snipingPhase, setSnipingPhase] = useState(false);
 
   // Internal state: p1/p2 instead of you/opp
   const [state, setState] = useState({
@@ -39,7 +41,6 @@ function App() {
     p2: { chips: 100, cards: [], folded: false, bet: 0 },
     community: [],
     pot: 0,
-    snipingPhase: false,
     snipes: {player1 : null, player2 :null} 
   });
 
@@ -66,11 +67,10 @@ function App() {
       });
 
       socket.on("game-start", ({ role, room }) => {
-        console.log("Game started, role:", role, "room:", room);
         setMyRole(role);
         setWaiting(false);
         setRoomReady(true);
-        setWhoseTurn("player1"); // Always start with player1's turn
+        setWhoseTurn("player1");
       });
 
       socket.on("sync-state", (data) => {
@@ -88,6 +88,38 @@ function App() {
         setP2Folded(data.p2Folded);
         setWhoseTurn(data.whoseTurn);
         setHistory(data.history);
+      });
+
+      // Attach game-over handler here
+      socket.on("game-over", ({ state: finalState }) => {
+        const p1Hand = [
+          ...finalState.p1.cards,
+          ...finalState.community.filter(Boolean),
+        ];
+        const p2Hand = [
+          ...finalState.p2.cards,
+          ...finalState.community.filter(Boolean),
+        ];
+        const p1Rank = getHandRank(p1Hand);
+        const p2Rank = getHandRank(p2Hand);
+
+        let winner;
+        if (p1Rank.value > p2Rank.value) {
+          winner = "Player 1 wins!";
+        } else if (p2Rank.value > p1Rank.value) {
+          winner = "Player 2 wins!";
+        } else {
+          // If same hand type, compare high card
+          if (p1Rank.high > p2Rank.high) {
+            winner = "Player 1 wins!";
+          } else if (p2Rank.high > p1Rank.high) {
+            winner = "Player 2 wins!";
+          } else {
+            winner = "It's a tie!";
+          }
+        }
+        setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
+        alert(`Game Over: ${winner}`);
       });
     }
     // eslint-disable-next-line
@@ -108,9 +140,9 @@ function App() {
     // eslint-disable-next-line
   }, [state.pot]);
 
-  function emitMove(newState, newP1Folded, newP2Folded, newWhoseTurn, newHistory) {
+  function emitMove(newState, newP1Folded, newP2Folded, newWhoseTurn, newHistory, gameOver = false) {
     if (socketRef.current) {
-      socketRef.current.emit("move", {
+      socketRef.current.emit(gameOver ? "game-over" : "move", {
         state: newState,
         p1Folded: newP1Folded,
         p2Folded: newP2Folded,
@@ -186,22 +218,6 @@ function App() {
 
   return (
     <div>
-      {/* Show snipingPhase boolean for debugging/visibility */}
-      // This is just for debugging, remove in production
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          background: "#222",
-          color: "#ffe082",
-          padding: "6px 16px",
-          borderRadius: 8,
-          zIndex: 100,
-        }}
-      >
-        Sniping Phase: <b>{state.snipingPhase ? "true" : "false"}</b>
-      </div>
       <BlindsInfo smallBlind={SMALL_BLIND} bigBlind={BIG_BLIND} />
       <SnipesInfo state={state} />
       <HistoryLog history={history} />
@@ -225,7 +241,20 @@ function App() {
         dealerIsP1={dealerIsP1}
         state={state}
       />
-      {!state.snipingPhase ? (
+      {state.snipes.player1 || state.snipes.player2 || snipingPhase ? (
+        <SnipingUI
+          mySnipe={mySnipe}
+          setMySnipe={setMySnipe}
+          myRole={myRole}
+          whoseTurn={whoseTurn}
+          setWhoseTurn={setWhoseTurn}
+          emitMove={emitMove}
+          history={history}
+          state={state}
+          setState={setState}
+          socketRef={socketRef}
+        />
+      ) : (
         <Controls
           betAmount={betAmount}
           setBetAmount={setBetAmount}
@@ -245,18 +274,7 @@ function App() {
           setWhoseTurn={setWhoseTurn}
           lastCheck={lastCheck}
           setLastCheck={setLastCheck}
-        />
-      ) : (
-        <SnipingUI
-          mySnipe={mySnipe}
-          setMySnipe={setMySnipe}
-          myRole={myRole}
-          whoseTurn={whoseTurn}
-          setWhoseTurn={setWhoseTurn}
-          emitMove={emitMove}
-          history={history}
-          state={state}
-          setState={setState}
+          setSnipingPhase={setSnipingPhase}
         />
       )}
     </div>

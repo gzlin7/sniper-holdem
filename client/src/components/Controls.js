@@ -19,33 +19,48 @@ export function Controls({
   setWhoseTurn,
   lastCheck,
   setLastCheck,
+  setSnipingPhase,
 }) {
   let myChips = myRole === "player1" ? state.p1.chips : state.p2.chips;
 
   // Helper for dealing unique cards (copied from App.js)
   function dealUniqueCards(count, exclude = []) {
     const SUITS = ["♠", "♥", "♦", "♣"];
-    const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+    const RANKS = [
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "J",
+      "Q",
+      "K",
+      "A",
+    ];
     let deck = [];
     for (let s of SUITS) for (let r of RANKS) deck.push({ rank: r, suit: s });
-    const used = new Set(exclude.map(c => c ? c.rank + c.suit : ''));
-    deck = deck.filter(c => !used.has(c.rank + c.suit));
+    const used = new Set(exclude.map((c) => (c ? c.rank + c.suit : "")));
+    deck = deck.filter((c) => !used.has(c.rank + c.suit));
     deck = deck.sort(() => Math.random() - 0.5);
     return deck.slice(0, count);
   }
 
   // --- Advance to next phase ---
   function advanceToNextPhase(nextTurn) {
-    const unrevealed = state.community.filter(c => c === null).length;
+    const unrevealed = state.community.filter((c) => c === null).length;
     if (unrevealed > 0) {
       const used = [
         ...state.community.filter(Boolean),
         ...state.p1.cards,
-        ...state.p2.cards
+        ...state.p2.cards,
       ];
       const toReveal = Math.min(2, unrevealed);
       const newCards = dealUniqueCards(toReveal, used);
-      setState(prev => {
+      setState((prev) => {
         const newCommunity = prev.community.slice();
         let idx = 0;
         for (let i = 0; i < newCommunity.length && idx < newCards.length; ++i) {
@@ -54,39 +69,20 @@ export function Controls({
           }
         }
         const updatedState = { ...prev, community: newCommunity };
-        emitMove(
-          updatedState,
-          p1Folded,
-          p2Folded,
-          nextTurn,
-          ["Community cards revealed", ...history]
-        );
+        emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
+          "Community cards revealed",
+          ...history,
+        ]);
         return updatedState;
       });
       addHistoryEntry("Community cards revealed");
-    } else if (!state.snipingPhase) {
-      setState(prev => {
-        const updatedState = { ...prev, snipingPhase: true };
-        emitMove(
-          updatedState,
-          p1Folded,
-          p2Folded,
-          nextTurn,
-          ["SnipingPhase", ...history]
-        );
-        return updatedState;
-      });
-      addHistoryEntry("SnipingPhase");
     } else {
-      emitMove(
-        state,
-        p1Folded,
-        p2Folded,
-        nextTurn,
-        // TODO: Handle reading what other role did 
-        ["Showdown", myRole + " ???", ...history]
-      );
-      addHistoryEntry("Showdown");
+      setSnipingPhase(true);
+      addHistoryEntry("Players may now snipe");
+      emitMove(state, p1Folded, p2Folded, nextTurn, [
+        "Players may now snipe",
+        ...history,
+      ]);
     }
   }
 
@@ -117,13 +113,10 @@ export function Controls({
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       setLastCheck(myRole);
       setWhoseTurn(nextTurn);
-      emitMove(
-        state,
-        p1Folded,
-        p2Folded,
-        nextTurn,
-        [myRole + " checked", ...history]
-      );
+      emitMove(state, p1Folded, p2Folded, nextTurn, [
+        myRole + " checked",
+        ...history,
+      ]);
     }
   }
 
@@ -138,12 +131,12 @@ export function Controls({
       }
       newState = {
         ...state,
-        p1: { 
-          ...state.p1, 
-          chips: state.p1.chips - raiseAmt, 
-          bet: (state.p1.bet || 0) + raiseAmt // increment bet value
+        p1: {
+          ...state.p1,
+          chips: state.p1.chips - raiseAmt,
+          bet: (state.p1.bet || 0) + raiseAmt, // increment bet value
         },
-        pot: state.pot + raiseAmt
+        pot: state.pot + raiseAmt,
       };
     } else {
       if (raiseAmt > state.p2.chips) {
@@ -152,25 +145,22 @@ export function Controls({
       }
       newState = {
         ...state,
-        p2: { 
-          ...state.p2, 
-          chips: state.p2.chips - raiseAmt, 
-          bet: (state.p2.bet || 0) + raiseAmt // increment bet value
+        p2: {
+          ...state.p2,
+          chips: state.p2.chips - raiseAmt,
+          bet: (state.p2.bet || 0) + raiseAmt, // increment bet value
         },
-        pot: state.pot + raiseAmt
+        pot: state.pot + raiseAmt,
       };
     }
     addHistoryEntry(`${myRole} raised $${raiseAmt}`);
     const nextTurn = myRole === "player1" ? "player2" : "player1";
     setState(newState);
     setWhoseTurn(nextTurn);
-    emitMove(
-      newState,
-      p1Folded,
-      p2Folded,
-      nextTurn,
-      [`${myRole} raised $${raiseAmt}`, ...history]
-    );
+    emitMove(newState, p1Folded, p2Folded, nextTurn, [
+      `${myRole} raised $${raiseAmt}`,
+      ...history,
+    ]);
   }
 
   // --- New: Call logic ---
@@ -182,20 +172,21 @@ export function Controls({
       if (callAmount <= 0) return;
       const newState = {
         ...state,
-        p1: { ...state.p1, chips: state.p1.chips - callAmount, bet: state.p1.bet + callAmount },
-        pot: state.pot + callAmount
+        p1: {
+          ...state.p1,
+          chips: state.p1.chips - callAmount,
+          bet: state.p1.bet + callAmount,
+        },
+        pot: state.pot + callAmount,
       };
       addHistoryEntry(`${myRole} called $${callAmount}`);
       const nextTurn = "player2";
       setState(newState);
       setWhoseTurn(nextTurn);
-      emitMove(
-        newState,
-        p1Folded,
-        p2Folded,
-        nextTurn,
-        [`${myRole} called $${callAmount}`, ...history]
-      );
+      emitMove(newState, p1Folded, p2Folded, nextTurn, [
+        `${myRole} called $${callAmount}`,
+        ...history,
+      ]);
       advanceToNextPhase(nextTurn);
     } else {
       callAmount = Math.max(0, state.p1.bet - state.p2.bet);
@@ -203,20 +194,21 @@ export function Controls({
       if (callAmount <= 0) return;
       const newState = {
         ...state,
-        p2: { ...state.p2, chips: state.p2.chips - callAmount, bet: state.p2.bet + callAmount },
-        pot: state.pot + callAmount
+        p2: {
+          ...state.p2,
+          chips: state.p2.chips - callAmount,
+          bet: state.p2.bet + callAmount,
+        },
+        pot: state.pot + callAmount,
       };
       addHistoryEntry(`${myRole} called $${callAmount}`);
       const nextTurn = "player1";
       setState(newState);
       setWhoseTurn(nextTurn);
-      emitMove(
-        newState,
-        p1Folded,
-        p2Folded,
-        nextTurn,
-        [`${myRole} called $${callAmount}`, ...history]
-      );
+      emitMove(newState, p1Folded, p2Folded, nextTurn, [
+        `${myRole} called $${callAmount}`,
+        ...history,
+      ]);
       advanceToNextPhase(nextTurn);
     }
   }
@@ -263,9 +255,9 @@ export function Controls({
         style={{
           width: 60,
           background: disabled ? "#eee" : undefined,
-          color: disabled ? "#888" : undefined
+          color: disabled ? "#888" : undefined,
         }}
-        onChange={e => setBetAmount(e.target.value)}
+        onChange={(e) => setBetAmount(e.target.value)}
         disabled={disabled}
       />
     </div>
