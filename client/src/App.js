@@ -32,6 +32,7 @@ function App() {
   const [p2Folded, setP2Folded] = useState(false);
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
+  const [lastCheck, setLastCheck] = useState(null);
 
   // Internal state: p1/p2 instead of you/opp
   const [state, setState] = useState({
@@ -283,6 +284,8 @@ function App() {
         addHistoryEntry={addHistoryEntry}
         history={history}
         setWhoseTurn={setWhoseTurn}
+        lastCheck={lastCheck}
+        setLastCheck={setLastCheck}
       />
     </div>
   );
