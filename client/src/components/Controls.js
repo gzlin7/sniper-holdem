@@ -109,7 +109,6 @@ export function Controls({
   function handleCheck() {
     addHistoryEntry(myRole + " checked");
     let bothBetEqualBigBlind = state.p1.bet === BIG_BLIND && state.p2.bet === BIG_BLIND;
-    console.log("bothBetEqualBigBlind", bothBetEqualBigBlind);
     if ((state.lastCheck && state.lastCheck !== myRole) || bothBetEqualBigBlind) {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       advanceToNextPhase(nextTurn, state);
