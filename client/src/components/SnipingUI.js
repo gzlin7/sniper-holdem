@@ -13,7 +13,7 @@ export function SnipingUI({
   p1Folded,
   p2Folded,
   history,
-  socketRef,
+  addHistoryEntry,
 }) {
   // Hide UI if not your turn
   if (myRole !== whoseTurn) return null;
@@ -57,6 +57,7 @@ export function SnipingUI({
     setState(updatedState);
     const nextTurn = myRole === "player1" ? "player2" : "player1";
     setWhoseTurn(nextTurn);
+    addHistoryEntry(`${myRole} sniped ${mySnipe.rank} ${mySnipe.type}`);
     emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
       `${myRole} sniped ${mySnipe.rank} ${mySnipe.type}`,
       ...history,

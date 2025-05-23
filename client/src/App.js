@@ -52,6 +52,145 @@ function App() {
     setHistory(prev => [entry, ...prev]);
   }
 
+  // --- Game over handler ---
+  function handleGameOver({ state: finalState }) {
+    // Reveal both players' cards and hand ranks in the UI
+
+    const p1Hand = [
+      ...finalState.p1.cards,
+      ...finalState.community.filter(Boolean),
+    ];
+    const p2Hand = [
+      ...finalState.p2.cards,
+      ...finalState.community.filter(Boolean),
+    ];
+    const p1Rank = getHandRank(p1Hand);
+    const p2Rank = getHandRank(p2Hand);
+
+    // Sniping logic
+    const snipes = finalState.snipes || {};
+    let p1Sniped = false, p2Sniped = false;
+
+    // Check if p1's hand matches either snipe
+    for (const snipe of [snipes.player1, snipes.player2]) {
+      if (snipe) {
+        const [snipeRank, ...snipeTypeArr] = snipe.split(" ");
+        const snipeType = snipeTypeArr.join(" ");
+        if (
+          p1Rank.name &&
+          p1Rank.name.startsWith(snipeRank) &&
+          p1Rank.name.endsWith(snipeType)
+        ) {
+          p1Sniped = true;
+        }
+        if (
+          p2Rank.name &&
+          p2Rank.name.startsWith(snipeRank) &&
+          p2Rank.name.endsWith(snipeType)
+        ) {
+          p2Sniped = true;
+        }
+      }
+    }
+
+    let winner;
+    let winnerKey = null;
+    let isTie = false;
+    if (p1Sniped && p2Sniped) {
+      winner = "It's a tie! Both players were sniped.";
+      isTie = true;
+    } else if (p1Sniped) {
+      winner = "Player 2 wins! Player 1 was sniped.";
+      winnerKey = "p2";
+    } else if (p2Sniped) {
+      winner = "Player 1 wins! Player 2 was sniped.";
+      winnerKey = "p1";
+    } else if (p1Rank.value > p2Rank.value) {
+      winner = "Player 1 wins!";
+      winnerKey = "p1";
+    } else if (p2Rank.value > p1Rank.value) {
+      winner = "Player 2 wins!";
+      winnerKey = "p2";
+    } else {
+      // If same hand type, compare high card
+      if (p1Rank.high > p2Rank.high) {
+        winner = "Player 1 wins!";
+        winnerKey = "p1";
+      } else if (p2Rank.high > p1Rank.high) {
+        winner = "Player 2 wins!";
+        winnerKey = "p2";
+      } else {
+        winner = "It's a tie!";
+        isTie = true;
+      }
+    }
+    setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
+    alert(`Game Over: ${winner}`);
+
+    // Give the winner the pot chips (if not a tie), or split if tie
+    setState(prev => {
+      let newP1 = { ...prev.p1 };
+      let newP2 = { ...prev.p2 };
+      let newPot = prev.pot;
+      if (isTie && prev.pot > 0) {
+        const half = Math.round(prev.pot / 2);
+        newP1.chips += half;
+        newP2.chips += prev.pot - half;
+        newPot = 0;
+      } else if (winnerKey === "p1") {
+        newP1.chips += prev.pot;
+        newPot = 0;
+      } else if (winnerKey === "p2") {
+        newP2.chips += prev.pot;
+        newPot = 0;
+      }
+      // Reset snipes and snipingPhase, keep chips and pot as above
+      return {
+        ...prev,
+        p1: { ...newP1, cards: [], folded: false, bet: 0 },
+        p2: { ...newP2, cards: [], folded: false, bet: 0 },
+        community: [],
+        pot: newPot,
+        snipes: { player1: null, player2: null }
+      };
+    });
+    setSnipingPhase(false);
+
+    // Start a new round, but keep chips and pot the same
+    setTimeout(() => {
+      setState(prev => {
+        // Deal new cards, keep chips and pot
+        const all = dealUniqueCards(6);
+        const p1Cards = [all[0], all[1]];
+        const p2Cards = [all[2], all[3]];
+        const community = [all[4], all[5], null, null];
+        return {
+          ...prev,
+          p1: { ...prev.p1, cards: p1Cards, folded: false, bet: 0 },
+          p2: { ...prev.p2, cards: p2Cards, folded: false, bet: 0 },
+          community,
+          snipes: { player1: null, player2: null }
+        };
+      });
+      setP1Folded(false);
+      setP2Folded(false);
+      setWhoseTurn("player1");
+      setHistory([]);
+      addHistoryEntry("New round started");
+      // Sync state to server for both players
+      if (socketRef.current) {
+        socketRef.current.emit("sync-state", {
+          state,
+          dealerIsP1,
+          p1Folded: false,
+          p2Folded: false,
+          whoseTurn: "player1",
+          history: ["New round started"]
+        });
+      }
+    }, 1200);
+  }
+
   // --- Sockets setup ---
   useEffect(() => {
     if (!socketRef.current) {
@@ -90,37 +229,8 @@ function App() {
         setHistory(data.history);
       });
 
-      // Attach game-over handler here
-      socket.on("game-over", ({ state: finalState }) => {
-        const p1Hand = [
-          ...finalState.p1.cards,
-          ...finalState.community.filter(Boolean),
-        ];
-        const p2Hand = [
-          ...finalState.p2.cards,
-          ...finalState.community.filter(Boolean),
-        ];
-        const p1Rank = getHandRank(p1Hand);
-        const p2Rank = getHandRank(p2Hand);
-
-        let winner;
-        if (p1Rank.value > p2Rank.value) {
-          winner = "Player 1 wins!";
-        } else if (p2Rank.value > p1Rank.value) {
-          winner = "Player 2 wins!";
-        } else {
-          // If same hand type, compare high card
-          if (p1Rank.high > p2Rank.high) {
-            winner = "Player 1 wins!";
-          } else if (p2Rank.high > p1Rank.high) {
-            winner = "Player 2 wins!";
-          } else {
-            winner = "It's a tie!";
-          }
-        }
-        setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
-        alert(`Game Over: ${winner}`);
-      });
+      // Use the new handler function
+      socket.on("game-over", handleGameOver);
     }
     // eslint-disable-next-line
   }, []);
@@ -252,7 +362,7 @@ function App() {
           history={history}
           state={state}
           setState={setState}
-          socketRef={socketRef}
+          addHistoryEntry={addHistoryEntry}
         />
       ) : (
         <Controls
