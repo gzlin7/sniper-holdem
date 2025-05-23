@@ -17,8 +17,8 @@ export function SnipesInfo({ snipes }) {
       }}
     >
       Sniped Hands<br /><br />
-      {snipes.you ? `You: ${snipes.you}` : "You: (none)"}<br />
-      {snipes.opp ? `Opp: ${snipes.opp}` : "Opponent: (none)"}
+      Player1: {snipes.player1 ? `${snipes.player1}` : "(none)"} <br />
+      Player2: {snipes.player2 ? `${snipes.player2}` : "(none)"}
     </div>
   );
 }

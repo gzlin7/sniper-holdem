@@ -20,8 +20,6 @@ export function Controls({
   setWhoseTurn,
   lastCheck,
   setLastCheck,
-  snipingPhase,         // <-- add this prop
-  setSnipingPhase       // <-- add this prop if needed elsewhere
 }) {
   let myChips = myRole === "player1" ? state.p1.chips : state.p2.chips;
 
@@ -67,16 +65,18 @@ export function Controls({
         return updatedState;
       });
       addHistoryEntry("Community cards revealed");
-    } else if (!snipingPhase) {
-      setSnipingPhase(true);
-      emitMove(
-        state,
-        p1Folded,
-        p2Folded,
-        nextTurn,
-        // TODO: Handle reading what other role did 
-        ["SnipingPhase", ...history]
-      );
+    } else if (!state.snipingPhase) {
+      setState(prev => {
+        const updatedState = { ...prev, snipingPhase: true };
+        emitMove(
+          updatedState,
+          p1Folded,
+          p2Folded,
+          nextTurn,
+          ["SnipingPhase", ...history]
+        );
+        return updatedState;
+      });
       addHistoryEntry("SnipingPhase");
     } else {
       emitMove(

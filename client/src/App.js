@@ -32,7 +32,6 @@ function App() {
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
   const [lastCheck, setLastCheck] = useState(null);
-  const [snipingPhase, setSnipingPhase] = useState(false); // <-- add this line
 
   // Internal state: p1/p2 instead of you/opp
   const [state, setState] = useState({
@@ -40,6 +39,7 @@ function App() {
     p2: { chips: 100, cards: [], folded: false, bet: 0 },
     community: [],
     pot: 0,
+    snipingPhase: false,
   });
 
   const socketRef = useRef(null);
@@ -194,6 +194,7 @@ function App() {
           onClick={() => {
             setSnipes(prev => ({ ...prev, [myRole]: `${mySnipe.rank} ${mySnipe.type}` }));
             setMySnipe({ rank: "", type: "" });
+            console.log("Snipe submitted?:", mySnipe);
             // Optionally: emit snipe to server here if needed
           }}
         >
@@ -227,7 +228,7 @@ function App() {
       {/* Show snipingPhase boolean for debugging/visibility */}
       // This is just for debugging, remove in production
       <div style={{ position: "absolute", top: 0, left: 0, background: "#222", color: "#ffe082", padding: "6px 16px", borderRadius: 8, zIndex: 100 }}>
-        Sniping Phase: <b>{snipingPhase ? "true" : "false"}</b>
+        Sniping Phase: <b>{state.snipingPhase ? "true" : "false"}</b>
       </div>
       <BlindsInfo smallBlind={SMALL_BLIND} bigBlind={BIG_BLIND} />
       <SnipesInfo snipes={snipes} />
@@ -252,7 +253,7 @@ function App() {
         dealerIsP1={dealerIsP1}
         state={state}
       />
-      {!snipingPhase ? (
+      {!state.snipingPhase ? (
         <Controls
           betAmount={betAmount}
           setBetAmount={setBetAmount}
@@ -272,8 +273,6 @@ function App() {
           setWhoseTurn={setWhoseTurn}
           lastCheck={lastCheck}
           setLastCheck={setLastCheck}
-          snipingPhase={snipingPhase}
-          setSnipingPhase={setSnipingPhase}
         />
       ) : (
         <SnipingUI />
