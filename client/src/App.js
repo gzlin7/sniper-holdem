@@ -7,7 +7,6 @@ import { HistoryLog } from "./components/HistoryLog";
 import { Table } from "./components/Table";
 import { Players } from "./components/Players";
 import { Controls } from "./components/Controls";
-import { getHandRank } from "./handHelper";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
@@ -188,46 +187,22 @@ function App() {
   }
 
   // For UI, map p1/p2 to you/opp based on myRole
-  let your, opp, youBlind, oppBlind, yourBet, oppBet;
+  let your, opp, yourBet, oppBet;
   if (myRole === "player1") {
     your = state.p1;
     opp = { ...state.p2, cards: state.p2.cards.map(() => ({ rank: "?", suit: "?" })) };
-    youBlind = dealerIsP1 ? '(Big Blind)' : '(Small Blind)';
-    oppBlind = dealerIsP1 ? '(Small Blind)' : '(Big Blind)';
     yourBet = state.p1.bet || 0;
     oppBet = state.p2.bet || 0;
   } else if (myRole === "player2") {
     your = state.p2;
     opp = { ...state.p1, cards: state.p1.cards.map(() => ({ rank: "?", suit: "?" })) };
-    youBlind = !dealerIsP1 ? '(Big Blind)' : '(Small Blind)';
-    oppBlind = !dealerIsP1 ? '(Small Blind)' : '(Big Blind)';
     yourBet = state.p2.bet || 0;
     oppBet = state.p1.bet || 0;
   } else {
     your = { chips: 0, cards: [], folded: false, bet: 0 };
     opp = { chips: 0, cards: [], folded: false, bet: 0 };
-    youBlind = "";
-    oppBlind = "";
     yourBet = 0;
     oppBet = 0;
-  }
-
-  // --- Hand rank logic using handHelper ---
-  let rankText = "";
-  let oppRankText = "";
-  if (your.cards && state.community) {
-    const allYourCards = [...your.cards, ...state.community.filter(Boolean)];
-    if (allYourCards.length >= 5 && allYourCards.every(c => c && c.rank && c.suit)) {
-      rankText = getHandRank(allYourCards).name;
-    }
-    // For opponent, only show if all cards are revealed (no '?')
-    const allOppCards = [...opp.cards, ...state.community.filter(Boolean)];
-    if (
-      allOppCards.length >= 5 &&
-      allOppCards.every(c => c && c.rank && c.suit && c.rank !== "?" && c.suit !== "?")
-    ) {
-      oppRankText = getHandRank(allOppCards).name;
-    }
   }
 
   return (
@@ -247,15 +222,13 @@ function App() {
         oppCards={opp.cards}
         yourChips={your.chips}
         oppChips={opp.chips}
-        yourRank={rankText}
-        oppRank={oppRankText}
-        youBlind={youBlind}
-        oppBlind={oppBlind}
         yourRole={myRole}
         oppRole={myRole === "player1" ? "player2" : "player1"}
         myTurn={whoseTurn === myRole}
         yourBet={yourBet}
         oppBet={oppBet}
+        dealerIsP1={dealerIsP1}
+        state={state}
       />
       <Controls
         betAmount={betAmount}
