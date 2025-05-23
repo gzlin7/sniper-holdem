@@ -33,8 +33,9 @@ function App() {
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
   const [snipingPhase, setSnipingPhase] = useState(false);
+  const [hideOpponent, setHideOpponent] = useState(true); // New state for hiding opponent's card
 
-  // Internal state: p1/p2 instead of you/opp
+  // Internal state 
   const [state, setState] = useState({
     p1: { chips: 100, cards: [], folded: false, bet: 0 },
     p2: { chips: 100, cards: [], folded: false, bet: 0 },
@@ -55,6 +56,7 @@ function App() {
   // --- Game over handler ---
   function handleGameOver({ state: finalState }) {
     // Reveal both players' cards and hand ranks in the UI
+    setHideOpponent(false);
 
     const p1Hand = [
       ...finalState.p1.cards,
@@ -165,6 +167,7 @@ function App() {
       };
     });
     setSnipingPhase(false);
+    setHideOpponent(true); // Hide opponent's cards again
 
     // Start a new round, but keep chips and pot the same
     setTimeout(() => {
@@ -319,25 +322,6 @@ function App() {
   // --- Sniping UI state ---
   const [mySnipe, setMySnipe] = useState({ rank: "", type: "" });
 
-  // For UI, map p1/p2 to you/opp based on myRole
-  let your, opp, yourBet, oppBet;
-  if (myRole === "player1") {
-    your = state.p1;
-    opp = { ...state.p2, cards: state.p2.cards.map(() => ({ rank: "?", suit: "?" })) };
-    yourBet = state.p1.bet || 0;
-    oppBet = state.p2.bet || 0;
-  } else if (myRole === "player2") {
-    your = state.p2;
-    opp = { ...state.p1, cards: state.p1.cards.map(() => ({ rank: "?", suit: "?" })) };
-    yourBet = state.p2.bet || 0;
-    oppBet = state.p1.bet || 0;
-  } else {
-    your = { chips: 0, cards: [], folded: false, bet: 0 };
-    opp = { chips: 0, cards: [], folded: false, bet: 0 };
-    yourBet = 0;
-    oppBet = 0;
-  }
-
   return (
     <div>
       <BlindsInfo smallBlind={SMALL_BLIND} bigBlind={BIG_BLIND} />
@@ -351,17 +335,12 @@ function App() {
       )}
       <Table community={state.community} pot={state.pot} />
       <Players
-        yourCards={your.cards}
-        oppCards={opp.cards}
-        yourChips={your.chips}
-        oppChips={opp.chips}
         yourRole={myRole}
         oppRole={myRole === "player1" ? "player2" : "player1"}
         myTurn={whoseTurn === myRole}
-        yourBet={yourBet}
-        oppBet={oppBet}
         dealerIsP1={dealerIsP1}
         state={state}
+        hideOpponent={hideOpponent}
       />
       {state.snipes.player1 || state.snipes.player2 || snipingPhase ? (
         <SnipingUI
