@@ -32,7 +32,6 @@ function App() {
   const [p2Folded, setP2Folded] = useState(false);
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
-  const [lastCheck, setLastCheck] = useState(null);
   const [snipingPhase, setSnipingPhase] = useState(false);
 
   // Internal state: p1/p2 instead of you/opp
@@ -41,7 +40,8 @@ function App() {
     p2: { chips: 100, cards: [], folded: false, bet: 0 },
     community: [],
     pot: 0,
-    snipes: {player1 : null, player2 :null} 
+    snipes: {player1 : null, player2 :null},
+    lastCheck: null,
   });
 
   const socketRef = useRef(null);
@@ -281,20 +281,21 @@ function App() {
     const community = [all[4], all[5], null, null];
     const newState = {
       p1: {
-        chips: 100 - (dealerIsP1 ? BIG_BLIND : SMALL_BLIND),
+        chips: 100 - (dealerIsP1 ? SMALL_BLIND : BIG_BLIND ),
         cards: p1Cards,
         folded: false,
-        bet: dealerIsP1 ? BIG_BLIND : SMALL_BLIND,
+        bet: dealerIsP1 ? SMALL_BLIND : BIG_BLIND,
       },
       p2: {
-        chips: 100 - (dealerIsP1 ? SMALL_BLIND : BIG_BLIND),
+        chips: 100 - (dealerIsP1 ? BIG_BLIND : SMALL_BLIND),
         cards: p2Cards,
         folded: false,
-        bet: dealerIsP1 ? SMALL_BLIND : BIG_BLIND,
+        bet: dealerIsP1 ? BIG_BLIND: SMALL_BLIND,
       },
       community,
       pot: SMALL_BLIND + BIG_BLIND,
       snipes: { player1: null, player2: null },
+      lastCheck: null,
     };
     setState(newState);
     setP1Folded(false);
@@ -393,8 +394,6 @@ function App() {
           addHistoryEntry={addHistoryEntry}
           history={history}
           setWhoseTurn={setWhoseTurn}
-          lastCheck={lastCheck}
-          setLastCheck={setLastCheck}
           setSnipingPhase={setSnipingPhase}
         />
       )}

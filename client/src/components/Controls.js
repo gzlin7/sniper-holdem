@@ -17,11 +17,14 @@ export function Controls({
   addHistoryEntry,
   history,
   setWhoseTurn,
-  lastCheck,
-  setLastCheck,
   setSnipingPhase,
+  dealerIsP1, // <-- add this prop to Controls in App.js
 }) {
   let myChips = myRole === "player1" ? state.p1.chips : state.p2.chips;
+  
+  // TODO: Remove redefinition of constants from App.js
+  const SMALL_BLIND = 5;
+  const BIG_BLIND = 10;
 
   // Helper for dealing unique cards (copied from App.js)
   function dealUniqueCards(count, exclude = []) {
@@ -68,7 +71,7 @@ export function Controls({
             newCommunity[i] = newCards[idx++];
           }
         }
-        const updatedState = { ...prev, community: newCommunity };
+        const updatedState = { ...prev, community: newCommunity, lastCheck: null };
         emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
           "Community cards revealed",
           ...history,
@@ -79,6 +82,7 @@ export function Controls({
     } else {
       setSnipingPhase(true);
       addHistoryEntry("Players may now snipe");
+      // TODO: Should I reset lastCheck here to null as well? I don't think it's necessary
       emitMove(state, p1Folded, p2Folded, nextTurn, [
         "Players may now snipe",
         ...history,
@@ -104,16 +108,19 @@ export function Controls({
 
   function handleCheck() {
     addHistoryEntry(myRole + " checked");
-    if (lastCheck && lastCheck !== myRole) {
+    let bothBetEqualBigBlind = state.p1.bet === BIG_BLIND && state.p2.bet === BIG_BLIND;
+    console.log("bothBetEqualBigBlind", bothBetEqualBigBlind);
+    if ((state.lastCheck && state.lastCheck !== myRole) || bothBetEqualBigBlind) {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       advanceToNextPhase(nextTurn, state);
-      setLastCheck(null);
       setWhoseTurn(nextTurn);
+      const updatedState = { ...state, lastCheck: null };
+      emitMove(updatedState, p1Folded, p2Folded, nextTurn, history);
     } else {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
-      setLastCheck(myRole);
       setWhoseTurn(nextTurn);
-      emitMove(state, p1Folded, p2Folded, nextTurn, [
+      const updatedState = { ...state, lastCheck: myRole };
+      emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
         myRole + " checked",
         ...history,
       ]);
@@ -195,7 +202,12 @@ export function Controls({
         `${myRole} called $${callAmount}`,
         ...history,
       ]);
-      advanceToNextPhase(nextTurn, newState);
+      // Only advance phase if not the very first move (i.e. not both at blinds)
+      const isFirstMove =
+        state.p1.bet === SMALL_BLIND && state.p2.bet === BIG_BLIND;
+      if (!isFirstMove) {
+        advanceToNextPhase(nextTurn, newState);
+      }
     } else {
       callAmount = Math.max(0, state.p1.bet - state.p2.bet);
       if (callAmount > state.p2.chips) callAmount = state.p2.chips;
@@ -217,8 +229,12 @@ export function Controls({
         `${myRole} called $${callAmount}`,
         ...history,
       ]);
-      state = newState;
-      advanceToNextPhase(nextTurn, newState);
+      // Only advance phase if not the very first move (i.e. not both at blinds)
+      const isFirstMove =
+        state.p2.bet === SMALL_BLIND && state.p1.bet === BIG_BLIND;
+      if (!isFirstMove) {
+        advanceToNextPhase(nextTurn, newState);
+      }
     }
   }
 
