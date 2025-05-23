@@ -1,6 +1,6 @@
 import React from "react";
 export function renderCard(card) {
-  // Show blue back if card is missing, empty, or has "?" or "??"
+  // Show red back if card is missing, empty, or has "?" or "??"
   if (
     !card ||
     card.rank === "" ||
@@ -14,9 +14,10 @@ export function renderCard(card) {
       <div
         className="card"
         style={{
-          background: "linear-gradient(135deg, #1976d2 60%, #64b5f6 100%)",
-          color: "#1976d2",
-          border: "1px solid #1976d2",
+          background: "linear-gradient(135deg, #b71c1c 60%, #e57373 100%)", // deep red to light red
+          color: "#fff",
+          border: "2px solid #880808",
+          boxShadow: "0 2px 8px rgba(0,64,0,0.18)",
         }}
       ></div>
     );
