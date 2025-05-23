@@ -148,7 +148,7 @@ export function Controls({
         pot: state.pot + raiseAmt
       };
     }
-    addHistoryEntry(`You raised $${raiseAmt}`);
+    addHistoryEntry(`${myRole} raised $${raiseAmt}`);
     const nextTurn = myRole === "player1" ? "player2" : "player1";
     setState(newState);
     setWhoseTurn(nextTurn);
@@ -157,7 +157,7 @@ export function Controls({
       p1Folded,
       p2Folded,
       nextTurn,
-      [`You raised $${raiseAmt}`, ...history]
+      [`${myRole} raised $${raiseAmt}`, ...history]
     );
   }
 
@@ -173,7 +173,7 @@ export function Controls({
         p1: { ...state.p1, chips: state.p1.chips - callAmount, bet: state.p1.bet + callAmount },
         pot: state.pot + callAmount
       };
-      addHistoryEntry(`You called $${callAmount}`);
+      addHistoryEntry(`${myRole} called $${callAmount}`);
       const nextTurn = "player2";
       setState(newState);
       setWhoseTurn(nextTurn);
@@ -182,7 +182,7 @@ export function Controls({
         p1Folded,
         p2Folded,
         nextTurn,
-        [`You called $${callAmount}`, ...history]
+        [`${myRole} called $${callAmount}`, ...history]
       );
       revealCommunityCards(nextTurn);
     } else {
@@ -194,7 +194,7 @@ export function Controls({
         p2: { ...state.p2, chips: state.p2.chips - callAmount, bet: state.p2.bet + callAmount },
         pot: state.pot + callAmount
       };
-      addHistoryEntry(`You called $${callAmount}`);
+      addHistoryEntry(`${myRole} called $${callAmount}`);
       const nextTurn = "player1";
       setState(newState);
       setWhoseTurn(nextTurn);
@@ -203,7 +203,7 @@ export function Controls({
         p1Folded,
         p2Folded,
         nextTurn,
-        [`You called $${callAmount}`, ...history]
+        [`${myRole} called $${callAmount}`, ...history]
       );
       revealCommunityCards(nextTurn);
     }
