@@ -252,6 +252,7 @@ function App() {
 
   function emitMove(newState, newP1Folded, newP2Folded, newWhoseTurn, newHistory, gameOver = false) {
     if (socketRef.current) {
+      console.log("Emitting move", newState);
       socketRef.current.emit(gameOver ? "game-over" : "move", {
         state: newState,
         p1Folded: newP1Folded,

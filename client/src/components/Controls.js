@@ -50,7 +50,7 @@ export function Controls({
   }
 
   // --- Advance to next phase ---
-  function advanceToNextPhase(nextTurn) {
+  function advanceToNextPhase(nextTurn, state) {
     const unrevealed = state.community.filter((c) => c === null).length;
     if (unrevealed > 0) {
       const used = [
@@ -106,7 +106,7 @@ export function Controls({
     addHistoryEntry(myRole + " checked");
     if (lastCheck && lastCheck !== myRole) {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
-      advanceToNextPhase(nextTurn);
+      advanceToNextPhase(nextTurn, state);
       setLastCheck(null);
       setWhoseTurn(nextTurn);
     } else {
@@ -129,6 +129,10 @@ export function Controls({
         alert("You cannot bet more than you have!");
         return;
       }
+      if (raiseAmt <= state.p2.bet - state.p1.bet) {
+        alert("Raise amount must make your bet greater than opponent bet.");
+        return;
+      }
       newState = {
         ...state,
         p1: {
@@ -141,6 +145,10 @@ export function Controls({
     } else {
       if (raiseAmt > state.p2.chips) {
         alert("You cannot bet more than you have!");
+        return;
+      }
+      if (raiseAmt <= state.p1.bet - state.p2.bet) {
+        alert("Raise amount must make your bet greater than opponent bet.");
         return;
       }
       newState = {
@@ -187,7 +195,7 @@ export function Controls({
         `${myRole} called $${callAmount}`,
         ...history,
       ]);
-      advanceToNextPhase(nextTurn);
+      advanceToNextPhase(nextTurn, newState);
     } else {
       callAmount = Math.max(0, state.p1.bet - state.p2.bet);
       if (callAmount > state.p2.chips) callAmount = state.p2.chips;
@@ -209,7 +217,8 @@ export function Controls({
         `${myRole} called $${callAmount}`,
         ...history,
       ]);
-      advanceToNextPhase(nextTurn);
+      state = newState;
+      advanceToNextPhase(nextTurn, newState);
     }
   }
 
