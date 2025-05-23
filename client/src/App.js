@@ -32,7 +32,6 @@ function App() {
   const [p2Folded, setP2Folded] = useState(false);
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
-  const [snipingPhase, setSnipingPhase] = useState(false);
   const [hideOpponent, setHideOpponent] = useState(true); // New state for hiding opponent's card
 
   // Internal state 
@@ -43,6 +42,7 @@ function App() {
     pot: 0,
     snipes: {player1 : null, player2 :null},
     lastCheck: null,
+    snipingPhase: false,
   });
 
   const socketRef = useRef(null);
@@ -144,7 +144,6 @@ function App() {
 
     // Start a new round, but keep chips and pot the same
     setTimeout(() => {
-      setSnipingPhase(false);
       // Give the winner the pot chips (if not a tie), or split if tie
       setState((prev) => {
         let newP1 = { ...prev.p1 };
@@ -170,6 +169,8 @@ function App() {
           community: [],
           pot: newPot,
           snipes: { player1: null, player2: null },
+          lastCheck: null,
+          snipingPhase: false,
         };
       });
       setHideOpponent(true); // Hide opponent's cards again
@@ -300,6 +301,7 @@ function App() {
       pot: SMALL_BLIND + BIG_BLIND,
       snipes: { player1: null, player2: null },
       lastCheck: null,
+      snipingPhase: false,
     };
     setState(newState);
     setP1Folded(false);
@@ -343,7 +345,7 @@ function App() {
         state={state}
         hideOpponent={hideOpponent}
       />
-      {state.snipes.player1 || state.snipes.player2 || snipingPhase ? (
+      {state.snipes.player1 || state.snipes.player2 || state.snipingPhase ? (
         <SnipingUI
           mySnipe={mySnipe}
           setMySnipe={setMySnipe}
@@ -374,7 +376,6 @@ function App() {
           addHistoryEntry={addHistoryEntry}
           history={history}
           setWhoseTurn={setWhoseTurn}
-          setSnipingPhase={setSnipingPhase}
         />
       )}
     </div>

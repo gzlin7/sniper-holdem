@@ -17,7 +17,6 @@ export function Controls({
   addHistoryEntry,
   history,
   setWhoseTurn,
-  setSnipingPhase,
   dealerIsP1, // <-- add this prop to Controls in App.js
 }) {
   let myChips = myRole === "player1" ? state.p1.chips : state.p2.chips;
@@ -55,6 +54,7 @@ export function Controls({
   // --- Advance to next phase ---
   function advanceToNextPhase(nextTurn, state) {
     const unrevealed = state.community.filter((c) => c === null).length;
+    let newNextTurn = nextTurn;
     if (unrevealed > 0) {
       const used = [
         ...state.community.filter(Boolean),
@@ -80,14 +80,17 @@ export function Controls({
       });
       addHistoryEntry("Community cards revealed");
     } else {
-      setSnipingPhase(true);
-      addHistoryEntry("Players may now snipe");
-      // TODO: Should I reset lastCheck here to null as well? I don't think it's necessary
-      emitMove(state, p1Folded, p2Folded, nextTurn, [
-        "Players may now snipe",
+      newNextTurn = dealerIsP1 ? "player2" : "player1";
+      addHistoryEntry("Players may now snipe, starting with " + newNextTurn);
+      state.snipingPhase = true;
+      const updatedState = { ...state, snipingPhase: true, lastCheck: null };
+      emitMove(updatedState, p1Folded, p2Folded, newNextTurn, [
+        "Players may now snipe, starting with " + newNextTurn,
         ...history,
       ]);
     }
+
+    return newNextTurn;
   }
 
   // --- Controls logic ---
@@ -111,8 +114,8 @@ export function Controls({
     let bothBetEqualBigBlind = state.p1.bet === BIG_BLIND && state.p2.bet === BIG_BLIND;
     if ((state.lastCheck && state.lastCheck !== myRole) || bothBetEqualBigBlind) {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
-      advanceToNextPhase(nextTurn, state);
-      setWhoseTurn(nextTurn);
+      let newNextTurn = advanceToNextPhase(nextTurn, state);
+      setWhoseTurn(newNextTurn);
       const updatedState = { ...state, lastCheck: null };
       emitMove(updatedState, p1Folded, p2Folded, nextTurn, history);
     } else {
@@ -205,7 +208,8 @@ export function Controls({
       const isFirstMove =
         state.p1.bet === SMALL_BLIND && state.p2.bet === BIG_BLIND;
       if (!isFirstMove) {
-        advanceToNextPhase(nextTurn, newState);
+        let newNextTurn = advanceToNextPhase(nextTurn, newState);
+        setWhoseTurn(newNextTurn);
       }
     } else {
       callAmount = Math.max(0, state.p1.bet - state.p2.bet);
@@ -232,7 +236,8 @@ export function Controls({
       const isFirstMove =
         state.p2.bet === SMALL_BLIND && state.p1.bet === BIG_BLIND;
       if (!isFirstMove) {
-        advanceToNextPhase(nextTurn, newState);
+        let newNextTurn = advanceToNextPhase(nextTurn, newState);
+        setWhoseTurn(newNextTurn);
       }
     }
   }
