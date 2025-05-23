@@ -150,6 +150,59 @@ function App() {
     }
   }
 
+  // --- Sniping UI state ---
+  const [mySnipe, setMySnipe] = useState({ rank: "", type: "" });
+
+  // --- Sniping UI component ---
+  function SnipingUI() {
+    const HAND_TYPES = [
+      "High Card", "One Pair", "Two Pair", "Three of a Kind", "Straight",
+      "Flush", "Full House", "Four of a Kind", "Straight Flush", "Royal Flush"
+    ];
+    const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+    return (
+      <div style={{ textAlign: "center", margin: 24 }}>
+        <label>
+          <strong>Snipe a hand:&nbsp;</strong>
+          <select
+            value={mySnipe.rank}
+            onChange={e => setMySnipe(s => ({ ...s, rank: e.target.value }))}
+            disabled={snipes[myRole]}
+          >
+            <option value="">Rank</option>
+            {RANKS.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          &nbsp;
+          <select
+            value={mySnipe.type}
+            onChange={e => setMySnipe(s => ({ ...s, type: e.target.value }))}
+            disabled={snipes[myRole]}
+          >
+            <option value="">Hand Type</option>
+            {HAND_TYPES.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          style={{ marginLeft: 12 }}
+          disabled={
+            !mySnipe.rank || !mySnipe.type || !!snipes[myRole] || myRole !== whoseTurn
+          }
+          onClick={() => {
+            setSnipes(prev => ({ ...prev, [myRole]: `${mySnipe.rank} ${mySnipe.type}` }));
+            setMySnipe({ rank: "", type: "" });
+            // Optionally: emit snipe to server here if needed
+          }}
+        >
+          Snipe
+        </button>
+      </div>
+    );
+  }
+
   // For UI, map p1/p2 to you/opp based on myRole
   let your, opp, yourBet, oppBet;
   if (myRole === "player1") {
@@ -171,6 +224,11 @@ function App() {
 
   return (
     <div>
+      {/* Show snipingPhase boolean for debugging/visibility */}
+      // This is just for debugging, remove in production
+      <div style={{ position: "absolute", top: 0, left: 0, background: "#222", color: "#ffe082", padding: "6px 16px", borderRadius: 8, zIndex: 100 }}>
+        Sniping Phase: <b>{snipingPhase ? "true" : "false"}</b>
+      </div>
       <BlindsInfo smallBlind={SMALL_BLIND} bigBlind={BIG_BLIND} />
       <SnipesInfo snipes={snipes} />
       <HistoryLog history={history} />
@@ -194,28 +252,32 @@ function App() {
         dealerIsP1={dealerIsP1}
         state={state}
       />
-      <Controls
-        betAmount={betAmount}
-        setBetAmount={setBetAmount}
-        disabled={myRole !== whoseTurn}
-        myRole={myRole}
-        whoseTurn={whoseTurn}
-        state={state}
-        setState={setState}
-        p1Folded={p1Folded}
-        setP1Folded={setP1Folded}
-        p2Folded={p2Folded}
-        setP2Folded={setP2Folded}
-        emitMove={emitMove}
-        dealerIsP1={dealerIsP1}
-        addHistoryEntry={addHistoryEntry}
-        history={history}
-        setWhoseTurn={setWhoseTurn}
-        lastCheck={lastCheck}
-        setLastCheck={setLastCheck}
-        snipingPhase={snipingPhase} // <-- pass as prop if needed
-        setSnipingPhase={setSnipingPhase} // <-- pass as prop if needed
-      />
+      {!snipingPhase ? (
+        <Controls
+          betAmount={betAmount}
+          setBetAmount={setBetAmount}
+          disabled={myRole !== whoseTurn}
+          myRole={myRole}
+          whoseTurn={whoseTurn}
+          state={state}
+          setState={setState}
+          p1Folded={p1Folded}
+          setP1Folded={setP1Folded}
+          p2Folded={p2Folded}
+          setP2Folded={setP2Folded}
+          emitMove={emitMove}
+          dealerIsP1={dealerIsP1}
+          addHistoryEntry={addHistoryEntry}
+          history={history}
+          setWhoseTurn={setWhoseTurn}
+          lastCheck={lastCheck}
+          setLastCheck={setLastCheck}
+          snipingPhase={snipingPhase}
+          setSnipingPhase={setSnipingPhase}
+        />
+      ) : (
+        <SnipingUI />
+      )}
     </div>
   );
 }

@@ -68,6 +68,7 @@ export function Controls({
       });
       addHistoryEntry("Community cards revealed");
     } else if (!snipingPhase) {
+      setSnipingPhase(true);
       emitMove(
         state,
         p1Folded,
