@@ -183,6 +183,7 @@ export function Controls({
         nextTurn,
         [`You called $${callAmount}`, ...history]
       );
+      revealCommunityCards(nextTurn);
     } else {
       callAmount = Math.max(0, state.p1.bet - state.p2.bet);
       if (callAmount > state.p2.chips) callAmount = state.p2.chips;
@@ -203,6 +204,7 @@ export function Controls({
         nextTurn,
         [`You called $${callAmount}`, ...history]
       );
+      revealCommunityCards(nextTurn);
     }
   }
 
