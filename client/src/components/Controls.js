@@ -102,7 +102,7 @@ export function Controls({
       myRole === "player1" ? true : p1Folded,
       myRole === "player2" ? true : p2Folded,
       nextTurn,
-      ["You folded", ...history]
+      [myRole + " folded", ...history]
     );
   }
 
