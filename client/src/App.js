@@ -32,6 +32,7 @@ function App() {
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
   const [lastCheck, setLastCheck] = useState(null);
+  const [snipingPhase, setSnipingPhase] = useState(false); // <-- add this line
 
   // Internal state: p1/p2 instead of you/opp
   const [state, setState] = useState({
@@ -212,6 +213,8 @@ function App() {
         setWhoseTurn={setWhoseTurn}
         lastCheck={lastCheck}
         setLastCheck={setLastCheck}
+        snipingPhase={snipingPhase} // <-- pass as prop if needed
+        setSnipingPhase={setSnipingPhase} // <-- pass as prop if needed
       />
     </div>
   );

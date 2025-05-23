@@ -19,7 +19,9 @@ export function Controls({
   history,
   setWhoseTurn,
   lastCheck,
-  setLastCheck
+  setLastCheck,
+  snipingPhase,         // <-- add this prop
+  setSnipingPhase       // <-- add this prop if needed elsewhere
 }) {
   let myChips = myRole === "player1" ? state.p1.chips : state.p2.chips;
 
@@ -35,8 +37,8 @@ export function Controls({
     return deck.slice(0, count);
   }
 
-  // --- New: Reveal remaining community cards logic ---
-  function revealCommunityCards(nextTurn) {
+  // --- Advance to next phase ---
+  function advanceToNextPhase(nextTurn) {
     const unrevealed = state.community.filter(c => c === null).length;
     if (unrevealed > 0) {
       const used = [
@@ -65,8 +67,17 @@ export function Controls({
         return updatedState;
       });
       addHistoryEntry("Community cards revealed");
+    } else if (!snipingPhase) {
+      emitMove(
+        state,
+        p1Folded,
+        p2Folded,
+        nextTurn,
+        // TODO: Handle reading what other role did 
+        ["SnipingPhase", ...history]
+      );
+      addHistoryEntry("SnipingPhase");
     } else {
-      addHistoryEntry("Showdown");
       emitMove(
         state,
         p1Folded,
@@ -75,6 +86,7 @@ export function Controls({
         // TODO: Handle reading what other role did 
         ["Showdown", myRole + " ???", ...history]
       );
+      addHistoryEntry("Showdown");
     }
   }
 
@@ -98,7 +110,7 @@ export function Controls({
     addHistoryEntry(myRole + " checked");
     if (lastCheck && lastCheck !== myRole) {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
-      revealCommunityCards(nextTurn);
+      advanceToNextPhase(nextTurn);
       setLastCheck(null);
       setWhoseTurn(nextTurn);
     } else {
@@ -184,7 +196,7 @@ export function Controls({
         nextTurn,
         [`${myRole} called $${callAmount}`, ...history]
       );
-      revealCommunityCards(nextTurn);
+      advanceToNextPhase(nextTurn);
     } else {
       callAmount = Math.max(0, state.p1.bet - state.p2.bet);
       if (callAmount > state.p2.chips) callAmount = state.p2.chips;
@@ -205,7 +217,7 @@ export function Controls({
         nextTurn,
         [`${myRole} called $${callAmount}`, ...history]
       );
-      revealCommunityCards(nextTurn);
+      advanceToNextPhase(nextTurn);
     }
   }
 
