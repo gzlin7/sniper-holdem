@@ -24,6 +24,9 @@ function dealUniqueCards(count, exclude = []) {
   return deck.slice(0, count);
 }
 
+// Use the production backend URL for Socket.IO
+const SOCKET_IO_URL = "https://sniper-holdem.onrender.com";
+
 function App() {
   const [history, setHistory] = useState([]);
   const [dealerIsP1, setDealerIsP1] = useState(true);
@@ -222,25 +225,24 @@ function App() {
   // --- Sockets setup ---
   useEffect(() => {
     if (!socketRef.current) {
-      const socket = io.connect("http://localhost:3001");
-      socketRef.current = socket;
+      socketRef.current = io(SOCKET_IO_URL, { transports: ["websocket"] });
 
-      socket.emit("join-game");
+      socketRef.current.emit("join-game");
       console.log("Emitted join game");
 
-      socket.on("waiting", () => {
+      socketRef.current.on("waiting", () => {
         setWaiting(true);
         setRoomReady(false);
       });
 
-      socket.on("game-start", ({ role, room }) => {
+      socketRef.current.on("game-start", ({ role, room }) => {
         setMyRole(role);
         setWaiting(false);
         setRoomReady(true);
         setWhoseTurn("player1");
       });
 
-      socket.on("sync-state", (data) => {
+      socketRef.current.on("sync-state", (data) => {
         setState(data.state);
         setDealerIsP1(data.dealerIsP1);
         setP1Folded(data.p1Folded);
@@ -249,7 +251,7 @@ function App() {
         setHistory(data.history);
       });
 
-      socket.on("move", (data) => {
+      socketRef.current.on("move", (data) => {
         setState(data.state);
         setP1Folded(data.p1Folded);
         setP2Folded(data.p2Folded);
@@ -258,7 +260,7 @@ function App() {
       });
 
       // Use the new handler function
-      socket.on("game-over", handleGameOver);
+      socketRef.current.on("game-over", handleGameOver);
     }
     // eslint-disable-next-line
   }, []);
