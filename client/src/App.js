@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import './App.css';
-import io from "socket.io-client"
+import "./App.css";
+import io from "socket.io-client";
 import { BlindsInfo } from "./components/BlindsInfo";
 import { SnipesInfo } from "./components/SnipesInfo";
 import { HistoryLog } from "./components/HistoryLog";
@@ -11,39 +11,52 @@ import { SnipingUI } from "./components/SnipingUI";
 import { getHandRank, RANK_ORDER } from "./handHelper";
 
 const SUITS = ["♠", "♥", "♦", "♣"];
-const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+const RANKS = [
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "J",
+  "Q",
+  "K",
+  "A",
+];
 const SMALL_BLIND = 5;
 const BIG_BLIND = 10;
 
 function dealUniqueCards(count, exclude = []) {
   let deck = [];
   for (let s of SUITS) for (let r of RANKS) deck.push({ rank: r, suit: s });
-  const used = new Set(exclude.map(c => c ? c.rank + c.suit : ''));
-  deck = deck.filter(c => !used.has(c.rank + c.suit));
+  const used = new Set(exclude.map((c) => (c ? c.rank + c.suit : "")));
+  deck = deck.filter((c) => !used.has(c.rank + c.suit));
   deck = deck.sort(() => Math.random() - 0.5);
   return deck.slice(0, count);
 }
 
 // Use the production backend URL for Socket.IO
 const SOCKET_IO_URL = "https://sniper-holdem.onrender.com";
+// const SOCKET_IO_URL = "http://localhost:3001";
 
 function App() {
   const [history, setHistory] = useState([]);
   const [dealerIsP1, setDealerIsP1] = useState(true);
   const [betAmount, setBetAmount] = useState(0);
-  const [p1Folded, setP1Folded] = useState(false);
-  const [p2Folded, setP2Folded] = useState(false);
   const [whoseTurn, setWhoseTurn] = useState("player1");
   const [waiting, setWaiting] = useState(true);
   const [hideOpponent, setHideOpponent] = useState(true); // New state for hiding opponent's card
 
-  // Internal state 
+  // Internal state
   const [state, setState] = useState({
     p1: { chips: 100, cards: [], folded: false, bet: 0 },
     p2: { chips: 100, cards: [], folded: false, bet: 0 },
     community: [],
     pot: 0,
-    snipes: {player1 : null, player2 :null},
+    snipes: { player1: null, player2: null },
     lastCheck: null,
     snipingPhase: false,
   });
@@ -53,89 +66,101 @@ function App() {
   const [myRole, setMyRole] = useState(null); // "player1" or "player2"
 
   function addHistoryEntry(entry) {
-    setHistory(prev => [entry, ...prev]);
+    setHistory((prev) => [entry, ...prev]);
   }
 
   // --- Game over handler ---
   function handleGameOver({ state: finalState }) {
-    // Reveal both players' cards and hand ranks in the UI
-    setHideOpponent(false);
-
-    const p1Hand = [
-      ...finalState.p1.cards,
-      ...finalState.community.filter(Boolean),
-    ];
-    const p2Hand = [
-      ...finalState.p2.cards,
-      ...finalState.community.filter(Boolean),
-    ];
-    const p1Rank = getHandRank(p1Hand);
-    const p2Rank = getHandRank(p2Hand);
-
-    // Sniping logic
-    const snipes = finalState.snipes || {};
-    let p1Sniped = false, p2Sniped = false;
-
-    // Check if p1's hand matches either snipe
-    for (const snipe of [snipes.player1, snipes.player2]) {
-      if (snipe) {
-        const [snipeRank, ...snipeTypeArr] = snipe.split(" ");
-        const snipeType = snipeTypeArr.join(" ");
-        if (
-          p1Rank.name &&
-          p1Rank.name.startsWith(snipeRank) &&
-          p1Rank.name.endsWith(snipeType)
-        ) {
-          p1Sniped = true;
-        }
-        if (
-          p2Rank.name &&
-          p2Rank.name.startsWith(snipeRank) &&
-          p2Rank.name.endsWith(snipeType)
-        ) {
-          p2Sniped = true;
-        }
-      }
-    }
-
     let winner;
     let winnerKey = null;
     let isTie = false;
-    if (p1Sniped && p2Sniped) {
-      winner = "It's a tie! Both players were sniped.";
-      isTie = true;
-    } else if (p1Sniped) {
-      winner = "Player 2 wins! Player 1 was sniped.";
-      winnerKey = "p2";
-    } else if (p2Sniped) {
-      winner = "Player 1 wins! Player 2 was sniped.";
-      winnerKey = "p1";
-    } else if (p1Rank.value > p2Rank.value) {
-      winner = "Player 1 wins!";
-      winnerKey = "p1";
-    } else if (p2Rank.value > p1Rank.value) {
-      winner = "Player 2 wins!";
-      winnerKey = "p2";
-    } else {
-      function extractPrefixValue(rankObj) {
-        if (!rankObj || !rankObj.name) return 0;
-        const prefix = rankObj.name.split(" ")[0];
-        return RANK_ORDER[prefix] || 0;
-      }
-      const p1Prefix = extractPrefixValue(p1Rank);
-      const p2Prefix = extractPrefixValue(p2Rank);
 
-      if (p1Prefix > p2Prefix) {
+    if (finalState.p1.folded || finalState.p2.folded) {
+      console.log("One player folded");
+      let foldingPlayer = finalState.p1.folded ? "Player 1" : "Player 2";
+      let winningPlayer = finalState.p1.folded ? "Player 2" : "Player 1";
+      winner = `${foldingPlayer} folded, ${winningPlayer} wins!`;
+      winnerKey = finalState.p1.folded ? "p2" : "p1";
+    } else {
+      // If both players are not folded, determine the winner based on hand ranks
+      // Reveal both players' cards and hand ranks in the UI
+      setHideOpponent(false);
+
+      const p1Hand = [
+        ...finalState.p1.cards,
+        ...finalState.community.filter(Boolean),
+      ];
+      const p2Hand = [
+        ...finalState.p2.cards,
+        ...finalState.community.filter(Boolean),
+      ];
+      const p1Rank = getHandRank(p1Hand);
+      const p2Rank = getHandRank(p2Hand);
+
+      // Sniping logic
+      const snipes = finalState.snipes || {};
+      let p1Sniped = false,
+        p2Sniped = false;
+
+      // Check if p1's hand matches either snipe
+      for (const snipe of [snipes.player1, snipes.player2]) {
+        if (snipe) {
+          const [snipeRank, ...snipeTypeArr] = snipe.split(" ");
+          const snipeType = snipeTypeArr.join(" ");
+          if (
+            p1Rank.name &&
+            p1Rank.name.startsWith(snipeRank) &&
+            p1Rank.name.endsWith(snipeType)
+          ) {
+            p1Sniped = true;
+          }
+          if (
+            p2Rank.name &&
+            p2Rank.name.startsWith(snipeRank) &&
+            p2Rank.name.endsWith(snipeType)
+          ) {
+            p2Sniped = true;
+          }
+        }
+      }
+
+      if (p1Sniped && p2Sniped) {
+        winner = "It's a tie! Both players were sniped.";
+        isTie = true;
+      } else if (p1Sniped) {
+        winner = "Player 2 wins! Player 1 was sniped.";
+        winnerKey = "p2";
+      } else if (p2Sniped) {
+        winner = "Player 1 wins! Player 2 was sniped.";
+        winnerKey = "p1";
+      } else if (p1Rank.value > p2Rank.value) {
         winner = "Player 1 wins!";
         winnerKey = "p1";
-      } else if (p2Prefix > p1Prefix) {
+      } else if (p2Rank.value > p1Rank.value) {
         winner = "Player 2 wins!";
         winnerKey = "p2";
       } else {
-        winner = "It's a tie!";
-        isTie = true;
+        function extractPrefixValue(rankObj) {
+          if (!rankObj || !rankObj.name) return 0;
+          const prefix = rankObj.name.split(" ")[0];
+          return RANK_ORDER[prefix] || 0;
+        }
+        const p1Prefix = extractPrefixValue(p1Rank);
+        const p2Prefix = extractPrefixValue(p2Rank);
+
+        if (p1Prefix > p2Prefix) {
+          winner = "Player 1 wins!";
+          winnerKey = "p1";
+        } else if (p2Prefix > p1Prefix) {
+          winner = "Player 2 wins!";
+          winnerKey = "p2";
+        } else {
+          winner = "It's a tie!";
+          isTie = true;
+        }
       }
     }
+
     setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
     setTimeout(() => {
       alert(`Game Over: ${winner}`);
@@ -144,11 +169,9 @@ function App() {
     // --- FIX: Use startRound to properly initialize the next round ---
     setTimeout(() => {
       setHideOpponent(true);
-      setP1Folded(false);
-      setP2Folded(false);
       setHistory([]);
       // Calculate new chips for blinds and pot
-      setState(prev => {
+      setState((prev) => {
         let newP1 = { ...prev.p1 };
         let newP2 = { ...prev.p2 };
         let newPot = prev.pot;
@@ -167,8 +190,10 @@ function App() {
         // Alternate dealer for next round
         const nextDealerIsP1 = !dealerIsP1;
         // Deduct blinds for new round
-        const p1Chips = newP1.chips - (nextDealerIsP1 ? SMALL_BLIND : BIG_BLIND);
-        const p2Chips = newP2.chips - (nextDealerIsP1 ? BIG_BLIND : SMALL_BLIND);
+        const p1Chips =
+          newP1.chips - (nextDealerIsP1 ? SMALL_BLIND : BIG_BLIND);
+        const p2Chips =
+          newP2.chips - (nextDealerIsP1 ? BIG_BLIND : SMALL_BLIND);
         // Deal new cards
         const all = dealUniqueCards(6);
         const p1Cards = [all[0], all[1]];
@@ -199,21 +224,19 @@ function App() {
           snipingPhase: false,
         };
       });
-      setDealerIsP1(d => !d);
+      setDealerIsP1((d) => !d);
       // Set whoseTurn to the new dealer
       setWhoseTurn(!dealerIsP1 ? "player1" : "player2");
       addHistoryEntry("New round started");
       // Sync state to server for both players
       if (socketRef.current) {
         setTimeout(() => {
-          setState(prev => {
+          setState((prev) => {
             socketRef.current.emit("sync-state", {
               state: prev,
               dealerIsP1: dealerIsP1,
-              p1Folded: false,
-              p2Folded: false,
               whoseTurn: !dealerIsP1 ? "player1" : "player2",
-              history: ["New round started"]
+              history: ["New round started"],
             });
             return prev;
           });
@@ -245,16 +268,12 @@ function App() {
       socketRef.current.on("sync-state", (data) => {
         setState(data.state);
         setDealerIsP1(data.dealerIsP1);
-        setP1Folded(data.p1Folded);
-        setP2Folded(data.p2Folded);
         setWhoseTurn(data.whoseTurn);
         setHistory(data.history);
       });
 
       socketRef.current.on("move", (data) => {
         setState(data.state);
-        setP1Folded(data.p1Folded);
-        setP2Folded(data.p2Folded);
         setWhoseTurn(data.whoseTurn);
         setHistory(data.history);
       });
@@ -280,12 +299,15 @@ function App() {
     // eslint-disable-next-line
   }, [state.pot]);
 
-  function emitMove(newState, newP1Folded, newP2Folded, newWhoseTurn, newHistory, gameOver = false) {
+  function emitMove(
+    newState,
+    newWhoseTurn,
+    newHistory,
+    gameOver = false
+  ) {
     if (socketRef.current) {
       socketRef.current.emit(gameOver ? "game-over" : "move", {
         state: newState,
-        p1Folded: newP1Folded,
-        p2Folded: newP2Folded,
         whoseTurn: newWhoseTurn,
         history: newHistory,
       });
@@ -300,7 +322,7 @@ function App() {
     const community = [all[4], all[5], null, null];
     const newState = {
       p1: {
-        chips: 100 - (dealerIsP1 ? SMALL_BLIND : BIG_BLIND ),
+        chips: 100 - (dealerIsP1 ? SMALL_BLIND : BIG_BLIND),
         cards: p1Cards,
         folded: false,
         bet: dealerIsP1 ? SMALL_BLIND : BIG_BLIND,
@@ -309,7 +331,7 @@ function App() {
         chips: 100 - (dealerIsP1 ? BIG_BLIND : SMALL_BLIND),
         cards: p2Cards,
         folded: false,
-        bet: dealerIsP1 ? BIG_BLIND: SMALL_BLIND,
+        bet: dealerIsP1 ? BIG_BLIND : SMALL_BLIND,
       },
       community,
       pot: SMALL_BLIND + BIG_BLIND,
@@ -318,20 +340,16 @@ function App() {
       snipingPhase: false,
     };
     setState(newState);
-    setP1Folded(false);
-    setP2Folded(false);
     setWhoseTurn("player1"); // Always start with player1's turn
-    setDealerIsP1(d => !d);
+    setDealerIsP1((d) => !d);
     setHistory([]);
     addHistoryEntry("New round started");
     if (sync && socketRef.current) {
       socketRef.current.emit("sync-state", {
         state: newState,
         dealerIsP1: !dealerIsP1,
-        p1Folded: false,
-        p2Folded: false,
         whoseTurn: "player1",
-        history: ["New round started"]
+        history: ["New round started"],
       });
     }
   }
@@ -381,10 +399,6 @@ function App() {
           whoseTurn={whoseTurn}
           state={state}
           setState={setState}
-          p1Folded={p1Folded}
-          setP1Folded={setP1Folded}
-          p2Folded={p2Folded}
-          setP2Folded={setP2Folded}
           emitMove={emitMove}
           dealerIsP1={dealerIsP1}
           addHistoryEntry={addHistoryEntry}

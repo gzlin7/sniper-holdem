@@ -9,10 +9,6 @@ export function Controls({
   whoseTurn,
   state,
   setState,
-  p1Folded,
-  setP1Folded,
-  p2Folded,
-  setP2Folded,
   emitMove,
   addHistoryEntry,
   history,
@@ -72,7 +68,7 @@ export function Controls({
           }
         }
         const updatedState = { ...prev, community: newCommunity, lastCheck: null };
-        emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
+        emitMove(updatedState, nextTurn, [
           "Community cards revealed",
           ...history,
         ]);
@@ -84,7 +80,7 @@ export function Controls({
       addHistoryEntry("Players may now snipe, starting with " + newNextTurn);
       state.snipingPhase = true;
       const updatedState = { ...state, snipingPhase: true, lastCheck: null };
-      emitMove(updatedState, p1Folded, p2Folded, newNextTurn, [
+      emitMove(updatedState, newNextTurn, [
         "Players may now snipe, starting with " + newNextTurn,
         ...history,
       ]);
@@ -95,17 +91,27 @@ export function Controls({
 
   // --- Controls logic ---
   function handleFold() {
-    if (myRole === "player1") setP1Folded(true);
-    else setP2Folded(true);
-    addHistoryEntry(myRole + " folded");
-    const nextTurn = myRole === "player1" ? "player2" : "player1";
-    setWhoseTurn(nextTurn);
+    // Set folded for the current player
+    let newState;
+    if (myRole === "player1") {
+      newState = {
+        ...state,
+        p1: { ...state.p1, folded: true }
+      };
+    } else {
+      newState = {
+        ...state,
+        p2: { ...state.p2, folded: true }
+      };
+    }
+    addHistoryEntry(`${myRole} folded`);
+    setState(newState);
+    // Emit game-over
     emitMove(
-      state,
-      myRole === "player1" ? true : p1Folded,
-      myRole === "player2" ? true : p2Folded,
-      nextTurn,
-      [myRole + " folded", ...history]
+      newState,
+      whoseTurn === "player1" ? "player2" : "player1",
+      [`${myRole} folded`, ...history],
+      true
     );
   }
 
@@ -118,12 +124,12 @@ export function Controls({
       let newNextTurn = advanceToNextPhase(nextTurn, state);
       setWhoseTurn(newNextTurn);
       const updatedState = { ...state, lastCheck: null };
-      emitMove(updatedState, p1Folded, p2Folded, newNextTurn, history);
+      emitMove(updatedState, newNextTurn, history);
     } else {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       setWhoseTurn(nextTurn);
       const updatedState = { ...state, lastCheck: myRole };
-      emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
+      emitMove(updatedState, nextTurn, [
         myRole + " checked",
         ...history,
       ]);
@@ -175,7 +181,7 @@ export function Controls({
     const nextTurn = myRole === "player1" ? "player2" : "player1";
     setState(newState);
     setWhoseTurn(nextTurn);
-    emitMove(newState, p1Folded, p2Folded, nextTurn, [
+    emitMove(newState, nextTurn, [
       `${myRole} raised $${raiseAmt}`,
       ...history,
     ]);
@@ -201,7 +207,7 @@ export function Controls({
       const nextTurn = "player2";
       setState(newState);
       setWhoseTurn(nextTurn);
-      emitMove(newState, p1Folded, p2Folded, nextTurn, [
+      emitMove(newState, nextTurn, [
         `${myRole} called $${callAmount}`,
         ...history,
       ]);
@@ -229,7 +235,7 @@ export function Controls({
       const nextTurn = "player1";
       setState(newState);
       setWhoseTurn(nextTurn);
-      emitMove(newState, p1Folded, p2Folded, nextTurn, [
+      emitMove(newState, nextTurn, [
         `${myRole} called $${callAmount}`,
         ...history,
       ]);

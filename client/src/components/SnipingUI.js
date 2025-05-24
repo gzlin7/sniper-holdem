@@ -10,8 +10,6 @@ export function SnipingUI({
   emitMove,
   state,
   setState,
-  p1Folded,
-  p2Folded,
   history,
   addHistoryEntry,
 }) {
@@ -58,7 +56,7 @@ export function SnipingUI({
     const nextTurn = myRole === "player1" ? "player2" : "player1";
     setWhoseTurn(nextTurn);
     addHistoryEntry(`${myRole} sniped ${mySnipe.rank} ${mySnipe.type}`);
-    emitMove(updatedState, p1Folded, p2Folded, nextTurn, [
+    emitMove(updatedState, nextTurn, [
       `${myRole} sniped ${mySnipe.rank} ${mySnipe.type}`,
       ...history,
     ]);
@@ -71,8 +69,6 @@ export function SnipingUI({
       console.log("Both players have sniped, game over");
       emitMove(
         updatedState,
-        p1Folded,
-        p2Folded,
         nextTurn,
         ["Both players have sniped, game over", ...history],
         true // Emit game-over
