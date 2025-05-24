@@ -114,10 +114,7 @@ function App() {
       winner = "Player 2 wins!";
       winnerKey = "p2";
     } else {
-      // If same hand type, compare the value of the card in the name (prefix)
-      // e.g. "A High Card", "K One Pair", etc.
       function extractPrefixValue(rankObj) {
-        // Try to extract the prefix card value from the name
         if (!rankObj || !rankObj.name) return 0;
         const prefix = rankObj.name.split(" ")[0];
         return RANK_ORDER[prefix] || 0;
@@ -137,15 +134,18 @@ function App() {
       }
     }
     setHistory((prev) => [`Game Over: ${winner}`, ...prev]);
-    // Force rerender before alert by using setTimeout
     setTimeout(() => {
       alert(`Game Over: ${winner}`);
     }, 2000);
 
-    // Start a new round, but keep chips and pot the same
+    // --- FIX: Use startRound to properly initialize the next round ---
     setTimeout(() => {
-      // Give the winner the pot chips (if not a tie), or split if tie
-      setState((prev) => {
+      setHideOpponent(true);
+      setP1Folded(false);
+      setP2Folded(false);
+      setHistory([]);
+      // Calculate new chips for blinds and pot
+      setState(prev => {
         let newP1 = { ...prev.p1 };
         let newP2 = { ...prev.p2 };
         let newPot = prev.pot;
@@ -161,50 +161,62 @@ function App() {
           newP2.chips += prev.pot;
           newPot = 0;
         }
-        // Reset snipes and snipingPhase, keep chips and pot as above
+        // Alternate dealer for next round
+        const nextDealerIsP1 = !dealerIsP1;
+        // Deduct blinds for new round
+        const p1Chips = newP1.chips - (nextDealerIsP1 ? SMALL_BLIND : BIG_BLIND);
+        const p2Chips = newP2.chips - (nextDealerIsP1 ? BIG_BLIND : SMALL_BLIND);
+        // Deal new cards
+        const all = dealUniqueCards(6);
+        const p1Cards = [all[0], all[1]];
+        const p2Cards = [all[2], all[3]];
+        const community = [all[4], all[5], null, null];
+        // Dealer goes first: if dealer is p1, player1; else player2
+        const nextWhoseTurn = nextDealerIsP1 ? "player1" : "player2";
         return {
           ...prev,
-          p1: { ...newP1, cards: [], folded: false, bet: 0 },
-          p2: { ...newP2, cards: [], folded: false, bet: 0 },
-          community: [],
-          pot: newPot,
+          p1: {
+            ...newP1,
+            chips: p1Chips,
+            cards: p1Cards,
+            folded: false,
+            bet: nextDealerIsP1 ? SMALL_BLIND : BIG_BLIND,
+          },
+          p2: {
+            ...newP2,
+            chips: p2Chips,
+            cards: p2Cards,
+            folded: false,
+            bet: nextDealerIsP1 ? BIG_BLIND : SMALL_BLIND,
+          },
+          community,
+          pot: SMALL_BLIND + BIG_BLIND,
           snipes: { player1: null, player2: null },
           lastCheck: null,
           snipingPhase: false,
         };
       });
-      setHideOpponent(true); // Hide opponent's cards again
-      setState((prev) => {
-        // Deal new cards, keep chips and pot
-        const all = dealUniqueCards(6);
-        const p1Cards = [all[0], all[1]];
-        const p2Cards = [all[2], all[3]];
-        const community = [all[4], all[5], null, null];
-        return {
-          ...prev,
-          p1: { ...prev.p1, cards: p1Cards, folded: false, bet: 0 },
-          p2: { ...prev.p2, cards: p2Cards, folded: false, bet: 0 },
-          community,
-          snipes: { player1: null, player2: null },
-        };
-      });
-      setP1Folded(false);
-      setP2Folded(false);
-      setWhoseTurn("player1");
-      setHistory([]);
+      setDealerIsP1(d => !d);
+      // Set whoseTurn to the new dealer
+      setWhoseTurn(!dealerIsP1 ? "player1" : "player2");
       addHistoryEntry("New round started");
       // Sync state to server for both players
       if (socketRef.current) {
-        socketRef.current.emit("sync-state", {
-          state,
-          dealerIsP1,
-          p1Folded: false,
-          p2Folded: false,
-          whoseTurn: "player1",
-          history: ["New round started"],
-        });
+        setTimeout(() => {
+          setState(prev => {
+            socketRef.current.emit("sync-state", {
+              state: prev,
+              dealerIsP1: dealerIsP1,
+              p1Folded: false,
+              p2Folded: false,
+              whoseTurn: !dealerIsP1 ? "player1" : "player2",
+              history: ["New round started"]
+            });
+            return prev;
+          });
+        }, 0);
       }
-    }, 5000);
+    }, 2500);
   }
 
   // --- Sockets setup ---

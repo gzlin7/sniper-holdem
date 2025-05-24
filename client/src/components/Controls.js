@@ -111,13 +111,14 @@ export function Controls({
 
   function handleCheck() {
     addHistoryEntry(myRole + " checked");
-    let bothBetEqualBigBlind = state.p1.bet === BIG_BLIND && state.p2.bet === BIG_BLIND;
+    let isBlindsPhase = state.community.filter((c) => c !== null).length == 2;
+    let bothBetEqualBigBlind = isBlindsPhase && state.p1.bet === BIG_BLIND && state.p2.bet === BIG_BLIND;
     if ((state.lastCheck && state.lastCheck !== myRole) || bothBetEqualBigBlind) {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       let newNextTurn = advanceToNextPhase(nextTurn, state);
       setWhoseTurn(newNextTurn);
       const updatedState = { ...state, lastCheck: null };
-      emitMove(updatedState, p1Folded, p2Folded, nextTurn, history);
+      emitMove(updatedState, p1Folded, p2Folded, newNextTurn, history);
     } else {
       const nextTurn = whoseTurn === "player1" ? "player2" : "player1";
       setWhoseTurn(nextTurn);
